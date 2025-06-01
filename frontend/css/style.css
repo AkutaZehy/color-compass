@@ -5,38 +5,62 @@ body {
   line-height: 1.6;
   margin: 20px;
   background-color: #1e1e1e;
-  /* 深色背景，模拟创意工具界面 */
   color: #cccccc;
-  /* 浅灰色文字 */
 }
 
-h1 {
+h1,
+h2 {
   text-align: center;
   color: #ffffff;
-  /* 白色标题 */
+  margin-bottom: 15px;
 }
 
 .input-section {
   margin-bottom: 20px;
   text-align: center;
-  /* 居中文本和输入框 */
 }
 
 .image-display {
   margin-top: 20px;
   text-align: center;
-  /* 居中图片容器 */
+  margin-bottom: 30px;
+  /* 在图片下方留出一些空间 */
 }
 
 #uploadedImage {
-  /* 确保图片不会过宽，超出屏幕 */
   max-width: 100%;
-  /* 限制图片最大高度，防止过高 */
   max-height: 600px;
-  /* 初始隐藏图片，直到加载成功 */
   display: none;
-  /* 添加一个细边框 */
   border: 1px solid #444;
-  /* 让图片看起来更立体一点点 */
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+.palette-section {
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #2a2a2a;
+  /* 调色板区域的背景色 */
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  /* 居中内容 */
+}
+
+#paletteCanvas {
+  /* Canvas 默认是 inline 元素，display: block 可以独占一行 */
+  display: block;
+  margin: 0 auto;
+  /* 配合 text-align: center 无法让 block 元素居中，需要 auto margin */
+  border: 1px solid #444;
+  background-color: #333;
+  /* Canvas 背景色 */
+  /* 可以设置最大宽度，防止在小屏幕上过宽 */
+  max-width: 100%;
+  /* 初始隐藏，直到有内容绘制 */
+  display: none;
+}
+
+#palettePlaceholder {
+  font-style: italic;
+  color: #888;
 }

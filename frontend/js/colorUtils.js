@@ -96,5 +96,29 @@ function rgbToLab (r, g, b) {
   // a* and b* typically range from -128 to 128 (approx)
 }
 
-// Note: You might also need HSV to RGB and Lab to RGB later for rendering.
-// For now, only RGB to HSV/Lab is implemented as per the step's goal.
+/**
+ * Calculates the Euclidean distance between two colors in the CIELAB color space (Delta E 1976).
+ * Based on https://en.wikipedia.org/wiki/Color_difference#Euclidean_distance_in_L*a*b*_or_L*u*v*
+ * @param   Array  lab1   First LAB color [L*, a*, b*]
+ * @param   Array  lab2   Second LAB color [L*, a*, b*]
+ * @return  Number        The color difference (Delta E)
+ */
+function labDistance (lab1, lab2) {
+  const deltaL = lab1[0] - lab2[0];
+  const deltaA = lab1[1] - lab2[1];
+  const deltaB = lab1[2] - lab2[2];
+  return Math.sqrt(deltaL * deltaL + deltaA * deltaA + deltaB * deltaB);
+}
+
+/**
+* Converts an RGB color array [r, g, b] (0-255) to a Hex string (#RRGGBB).
+* @param   Array   rgb   The RGB color array [r, g, b]
+* @return  String        The Hex representation
+*/
+function rgbToHex (rgb) {
+  const toHex = (c) => {
+    const hex = Math.round(c).toString(16);
+    return hex.length === 1 ? "0" + hex : hex;
+  };
+  return `#${toHex(rgb[0])}${toHex(rgb[1])}${toHex(rgb[2])}`.toUpperCase();
+}
