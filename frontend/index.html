@@ -8,17 +8,6 @@
     />
     <title>Color Compass</title>
     <link rel="stylesheet" href="css/style.css" />
-    <style>
-      /* Remove default margin/padding from body to avoid scrollbars caused by large canvas */
-      body {
-        margin: 0;
-        padding: 0;
-      }
-      /* Add padding back to a content wrapper div */
-      .content-wrapper {
-        padding: 20px; /* Consistent padding around main content */
-      }
-    </style>
 
     <!-- Import Map to resolve bare module specifiers like "three" -->
     <!-- MUST be before any script type="module" that imports these -->
@@ -96,7 +85,7 @@
                   <h3>基本参数</h3>
                   <div class="param-group">
                     <label for="maxColors"
-                      >最大颜色数量:
+                      >最大颜色数量
                       <span class="tooltip"
                         >?<span class="tooltiptext"
                           >控制最终色板中最多显示多少种颜色。增加该值会使色板包含更多的颜色，减少则会使色板更加简化。</span
@@ -118,7 +107,7 @@
                   <div class="advanced-content" style="display: none">
                     <div class="param-group">
                       <label for="minColors"
-                        >最小颜色数量:
+                        >最小颜色数量
                         <span class="tooltip"
                           >?<span class="tooltiptext"
                             >控制最终色板中最少显示多少种颜色。增加该值会使色板保留更多的颜色，减少则会使色板更加简化。</span
@@ -136,7 +125,7 @@
                     </div>
                     <div class="param-group">
                       <label for="featureThreshold"
-                        >特色阈值:
+                        >特色阈值
                         <span class="tooltip"
                           >?<span class="tooltiptext"
                             >控制识别特征颜色的阈值。基于 LAB
@@ -156,7 +145,7 @@
                     </div>
                     <div class="param-group">
                       <label for="maxSplit"
-                        >最大分裂:
+                        >最大分裂
                         <span class="tooltip"
                           >?<span class="tooltiptext"
                             >控制Median
@@ -175,7 +164,7 @@
                     </div>
                     <div class="param-group">
                       <label for="mergeIntensity"
-                        >合并烈度:
+                        >合并烈度
                         <span class="tooltip"
                           >?<span class="tooltiptext"
                             >控制颜色合并的强度。基于 LAB 距离，在保证
@@ -208,7 +197,7 @@
           </div>
 
           <div class="color-sphere-section">
-            <h2>Lab 色彩空间 (3D)</h2>
+            <h2>Lch 色彩空间 (3D)</h2>
             <div id="sphereContainer">
               <!-- Three.js will render its canvas here -->
             </div>
@@ -222,7 +211,17 @@
 
         <div class="right-panel">
           <div class="color-analysis-section">
-            <h2>色彩倾向分析</h2>
+            <h2>
+              色彩倾向分析<span class="tooltip"
+                >?<span class="tooltiptext"
+                  >通常来说，RGB 到 CIELAB 不可以直接转换。此处假定了输入是
+                  sRGB 空间，以 D65
+                  标准光源为参考白点，使用标准伽马矫正公式转为线性
+                  RGB，使用标准矩阵变换转为 CIE XYZ，使用 CIE 标准公式转为
+                  CIELAB。</span
+                ></span
+              >
+            </h2>
 
             <h3>统计摘要:</h3>
             <div class="stats-summary">
@@ -284,9 +283,10 @@
         <a
           href="https://github.com/AkutaZehy/color-compass"
           target="_blank"
-          >Github</a
+          >Github 仓库</a
         >
-        我们尊重您的隐私。事实上，这个项目是纯前端项目，因此您的数据均将会在本地处理，不会上传到服务器（我们也没有！）
+        <br />
+        我们尊重您的隐私。事实上，这个项目是纯前端项目，因此您的数据均将会在本地处理，不会上传到服务器（我们也没有服务器！）
       </div>
     </footer>
   </body>

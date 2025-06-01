@@ -7,16 +7,13 @@ import { rgbToHex } from './colorUtils.js'; // Import the function
  * @param {HTMLCanvasElement} canvasElement - The canvas element to draw onto.
  * @param {number} totalPixels - Total number of pixels in the original image.
  */
-export function drawPalette (palette, canvasElement, totalPixels) { // Export the function
+export function drawPalette (palette, canvasElement, totalPixels) {
   const placeholder = document.getElementById('palettePlaceholder');
   const paletteExportButtons = canvasElement.parentElement ? canvasElement.parentElement.querySelector('.export-buttons') : null;
 
-
   if (!palette || palette.length === 0 || !canvasElement) {
-    canvasElement.style.display = 'none'; // Hide canvas if no palette
-    if (placeholder) placeholder.style.display = 'block'; // Show placeholder
-
-    // Hide export buttons if palette is cleared or empty
+    canvasElement.style.display = 'none';
+    if (placeholder) placeholder.style.display = 'block';
     if (paletteExportButtons) {
       console.log("Hiding palette export buttons (palette is empty or invalid).");
       paletteExportButtons.style.display = 'none';
@@ -24,82 +21,65 @@ export function drawPalette (palette, canvasElement, totalPixels) { // Export th
     return;
   }
 
-  if (placeholder) placeholder.style.display = 'none'; // Hide placeholder
-  canvasElement.style.display = 'block'; // Show the canvas
-
+  if (placeholder) placeholder.style.display = 'none';
+  canvasElement.style.display = 'block';
 
   const ctx = canvasElement.getContext('2d');
 
-  // --- Drawing parameters ---
-  const swatchHeight = 50; // Height of each color swatch
-  const textHeight = 15;   // Height for color info text (reduced slightly)
-  const tagHeight = 12;    // Height for feature/background tag
-  const padding = 10;      // Padding around the palette
-  const swatchGap = 5;     // Gap between color swatches
-  const textGap = 5;       // Gap between swatch and text
-  const tagGap = 3;        // Gap between text and tag
+  const swatchHeight = 50;
+  const textHeight = 15;
+  const tagHeight = 12;
+  const padding = 10;
+  const swatchGap = 5;
+  const textGap = 5;
+  const tagGap = 3;
+  const fixedSwatchWidth = 80;
 
-  // Calculate required canvas size based on fixed swatch width
-  const fixedSwatchWidth = 80; // Fixed width for each swatch
-  const requiredWidth = padding * 2 + palette.length * (fixedSwatchWidth + swatchGap) - swatchGap;
-  // Height = padding (top) + swatch + textGap + text + tagGap + tag + padding (bottom)
-  const requiredHeight = padding * 2 + swatchHeight + textGap + textHeight + tagGap + tagHeight;
+  const parentWidth = canvasElement.parentElement ? canvasElement.parentElement.clientWidth : 800;
+  const maxSwatchesPerRow = Math.floor((parentWidth - padding * 2 + swatchGap) / (fixedSwatchWidth + swatchGap));
+  const numRows = Math.ceil(palette.length / maxSwatchesPerRow);
 
-  // Adjust canvas size - keep it within reasonable bounds
-  // Using clientWidth of the parent container for max width
-  const parentWidth = canvasElement.parentElement ? canvasElement.parentElement.clientWidth : requiredWidth;
-  // Set canvas width to fit required content, but not exceed parent width
-  canvasElement.width = Math.max(requiredWidth, Math.min(parentWidth, requiredWidth));
-  // Ensure a minimum width if requiredWidth is very small, but less than parentWidth
-  canvasElement.width = Math.max(canvasElement.width, Math.min(300, parentWidth));
-
-
+  const requiredHeight = padding * 2 + numRows * (swatchHeight + textGap + textHeight + tagGap + tagHeight + swatchGap) - swatchGap;
+  canvasElement.width = parentWidth;
   canvasElement.height = requiredHeight;
 
-
-  // Clear the canvas
-  ctx.fillStyle = '#333'; // Match container background
+  ctx.fillStyle = '#333';
   ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
   let currentX = padding;
+  let currentY = padding;
 
-  // Draw each color swatch and its info
-  palette.forEach(color => {
-    // Draw the color swatch rectangle
-    // Pass RGB as an array to rgbToHex
-    ctx.fillStyle = rgbToHex([color.rgb.r, color.rgb.g, color.rgb.b]);
-    ctx.fillRect(currentX, padding, fixedSwatchWidth, swatchHeight);
-
-    // Draw the color info text (Hex value)
-    ctx.fillStyle = '#ffffff'; // White text color
-    ctx.font = `${textHeight - 3}px sans-serif`; // Adjust font size based on textHeight
-    ctx.textAlign = 'center'; // Center text below the swatch
-    ctx.textBaseline = 'top'; // Align text to the top of the baseline
-
-    // Calculate hex string
-    const hex = rgbToHex([color.rgb.r, color.rgb.g, color.rgb.b]);
-
-    ctx.fillText(hex, currentX + fixedSwatchWidth / 2, padding + swatchHeight + textGap);
-
-    // Optional: Display percentage or background/feature tag
-    ctx.font = `${tagHeight - 2}px sans-serif`; // Smaller font for tags
-    ctx.textBaseline = 'top'; // Align tags to the top of their baseline
-
-
-    if (color.isBackground) {
-      ctx.fillStyle = '#00ff00'; // Green tag for background
-      ctx.fillText("背景", currentX + fixedSwatchWidth / 2, padding + swatchHeight + textGap + textHeight + tagGap);
-    } else if (color.isFeature) {
-      ctx.fillStyle = '#ffff00'; // Yellow tag for feature
-      ctx.fillText("特色", currentX + fixedSwatchWidth / 2, padding + swatchHeight + textGap + textHeight + tagGap);
+  palette.forEach((color, index) => {
+    if (index > 0 && index % maxSwatchesPerRow === 0) {
+      currentX = padding;
+      currentY += swatchHeight + textGap + textHeight + tagGap + tagHeight + swatchGap;
     }
 
+    ctx.fillStyle = rgbToHex([color.rgb.r, color.rgb.g, color.rgb.b]);
+    ctx.fillRect(currentX, currentY, fixedSwatchWidth, swatchHeight);
 
-    // Move to the next position
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `${textHeight - 3}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    const hex = rgbToHex([color.rgb.r, color.rgb.g, color.rgb.b]);
+    ctx.fillText(hex, currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap);
+
+    ctx.font = `${tagHeight - 2}px sans-serif`;
+    ctx.textBaseline = 'top';
+
+    if (color.isBackground) {
+      ctx.fillStyle = '#00ff00';
+      ctx.fillText("背景", currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap);
+    } else if (color.isFeature) {
+      ctx.fillStyle = '#ffff00';
+      ctx.fillText("特色", currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap);
+    }
+
     currentX += fixedSwatchWidth + swatchGap;
   });
 
-  // Show palette export buttons after drawing
   if (paletteExportButtons) {
     console.log("Showing palette export buttons.");
     paletteExportButtons.style.display = 'block';
