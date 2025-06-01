@@ -1,0 +1,49 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# IDE and Editor Specific Files
+.idea/         # IntelliJ/WebStorm/etc.
+.vscode/       # VS Code specific settings/configs (optional, if you have shared workspace settings you might want to track)
+*.suo          # Visual Studio Solution User Options
+*.user         # Visual Studio User Options
+*.csproj.user  # Visual Studio Project User Options
+*.sln.idef
+
+# Node.js (Frontend)
+node_modules/
+dist/          # Common build output directory
+build/         # Another common build output directory
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# If using a specific framework/bundler, add their common output/config files
+# e.g., .cache/, .parcel-cache/, .next/, out/, /.svelte-kit/, /.nuxt/
+
+# .NET / C# (Desktop)
+[Bb]in/              # Binaries for compiled code
+[Oo]bj/              # Object files
+*.pdb                # Program Debug Database files
+*.log
+*.rpt
+
+# Visual Studio specific
+.vs/                 # Visual Studio temp files
+*.vsscc
+*.vcsc
+vssver.scc
+
+# NuGet package restore directory
+# .nuget/            # Less common now with SDK-style projects, but include if necessary
+
+# Rider specific
+.idea.config
+
+# Other temporary files
+*.[Tt]mp
+*.[Tt]emp
+*.~*
+*.bak
+
+# Optional: If you store sample input images that are large, you might ignore them too.
+# e.g., sample_images/
