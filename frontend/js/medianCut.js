@@ -81,116 +81,66 @@ class ColorBox {
 /**
  * Extracts a color palette from image pixel data using the Median Cut algorithm.
  * @param {Uint8ClampedArray} pixelData - The pixel data array (R, G, B, A) from canvas.getImageData.
- * @param {number} maxColors - The desired maximum number of colors in the palette.
+ * @param {number} maxSplit - The maximum number of splits to perform (controls color granularity).
  * @returns {{r: number, g: number, b: number, count: number}[]} An array of extracted colors with their approximate pixel count.
  */
-export function extractPaletteMedianCut (pixelData, maxColors) {
-  if (!pixelData || pixelData.length === 0 || maxColors <= 0) {
+export function extractPaletteMedianCut (pixelData, maxSplit) {
+  if (!pixelData || pixelData.length === 0 || maxSplit <= 0) {
     return [];
   }
 
-  // 1. Collect colors and convert to Lab. Store original RGB.
-  // For simplicity and performance, process every Nth pixel if pixel count is very large?
-  // Let's process all pixels first for accuracy on smaller images.
+  // 1. Collect colors and convert to Lab
   const allColors = [];
-  const totalRawPixels = pixelData.length / 4; // Total number of actual pixels
-
   for (let i = 0; i < pixelData.length; i += 4) {
-    const r = pixelData[i];
-    const g = pixelData[i + 1];
-    const b = pixelData[i + 2];
-    // Ignore alpha
-
     allColors.push({
-      r: r, g: g, b: b,
-      lab: rgbToLab(r, g, b), // Convert to Lab using colorUtils
-      // Keep original values? Maybe not needed in the final palette structure
+      r: pixelData[i],
+      g: pixelData[i + 1],
+      b: pixelData[i + 2],
+      lab: rgbToLab(pixelData[i], pixelData[i + 1], pixelData[i + 2])
     });
   }
 
-  // Optimization: Reduce number of colors by combining identical ones?
-  // Not done here for simplicity, median cut will handle distribution.
+  // 2. Initialize with a single box
+  let colorBoxes = [new ColorBox(allColors)];
 
-  // 2. Initialize with a single box containing all colors
-  let colorBoxes = [];
-  if (allColors.length > 0) { // Only create box if there are colors
-    colorBoxes.push(new ColorBox(allColors));
-  } else {
-    return []; // No colors found
-  }
-
-
-  // 3. Repeatedly split the widest box until we have maxColors boxes
+  // 3. Split boxes until maxSplit is reached
   let splits = 0;
-  // Stop when we have enough boxes OR when we can't split meaningfully
-  while (colorBoxes.length < maxColors && splits < totalRawPixels) { // Limit splits to avoid infinite loop/very slow process
-    // Sort boxes by size (number of colors), largest first
-    colorBoxes.sort((a, b) => b.colors.length - a.colors.length);
-
-    const boxToSplit = colorBoxes[0];
-
-    // If the largest box has only one color or is empty, we can't split further meaningfully
-    if (boxToSplit.colors.length <= 1) {
-      // Check if all boxes have size 1, then break? For now, breaking on largest is enough.
-      break;
+  const finalSplit = Math.min(maxSplit ** 2, 40000); // CORE
+  while (splits < finalSplit) {
+    // Find the largest box to split
+    let largestBoxIndex = 0;
+    for (let i = 1; i < colorBoxes.length; i++) {
+      if (colorBoxes[i].colors.length > colorBoxes[largestBoxIndex].colors.length) {
+        largestBoxIndex = i;
+      }
     }
 
-    // Get the widest channel to split on
-    const widestChannel = boxToSplit.getWidestChannel();
+    const boxToSplit = colorBoxes[largestBoxIndex];
+    if (boxToSplit.colors.length <= 1) break; // Can't split further
 
-    // Sort colors within the box along the widest channel
+    // Split along widest channel
+    const widestChannel = boxToSplit.getWidestChannel();
     boxToSplit.colors.sort((a, b) => {
-      // Sort based on the value of the widest channel
-      if (widestChannel === 'l' || widestChannel === 'a' || widestChannel === 'b_lab') {
-        // Sort by Lab channel
-        const channelIndex = widestChannel === 'l' ? 0 : (widestChannel === 'a' ? 1 : 2);
-        return a.lab[channelIndex] - b.lab[channelIndex];
-      } else {
-        // Sort by RGB channel
-        return a[widestChannel] - b[widestChannel];
-      }
+      const channel = widestChannel === 'l' ? 0 :
+        widestChannel === 'a' ? 1 :
+          widestChannel === 'b_lab' ? 2 : widestChannel;
+      return a.lab[channel] - b.lab[channel];
     });
 
-    // Find the median position and split the box
     const medianIndex = Math.floor(boxToSplit.colors.length / 2);
     const box1 = new ColorBox(boxToSplit.colors.slice(0, medianIndex));
     const box2 = new ColorBox(boxToSplit.colors.slice(medianIndex));
 
-    // Ensure both new boxes are not empty before replacing
-    if (box1.colors.length === 0 || box2.colors.length === 0) {
-      // Should not happen with correct medianIndex unless all remaining colors are identical
-      console.warn("Median cut split resulted in empty box. Stopping split.");
-      break; // Cannot split further
-    }
-
-    // Replace the original box with the two new boxes
-    colorBoxes.splice(0, 1, box1, box2);
-    splits++; // Increment split counter
-
+    // Replace with new boxes
+    colorBoxes.splice(largestBoxIndex, 1, box1, box2);
+    splits++;
   }
 
-  // 4. Calculate the representative color for each final box (average RGB)
-  // Also, estimate the pixel count for each color. Filter out empty boxes.
-  const palette = colorBoxes
+  // 4. Generate final palette
+  return colorBoxes
     .map(box => {
-      const avgColor = box.getAverageColor(); // Returns { r, g, b } or null
-      if (!avgColor) return null; // Map empty boxes to null
-
-      const count = box.colors.length; // Number of pixels in this box
-      return {
-        r: avgColor.r,
-        g: avgColor.g,
-        b: avgColor.b,
-        count: count,
-        // Optional: Keep Lab color for later analysis/sorting/thresholding
-        // lab: rgbToLab(avgColor.r, avgColor.g, avgColor.b) // Recalculate Lab for the average color if needed
-      };
+      const avg = box.getAverageColor();
+      return avg ? { ...avg, count: box.colors.length } : null;
     })
-    .filter(entry => entry !== null); // Filter out null entries (from empty boxes)
-
-
-  // Note: This initial palette might contain similar colors or background colors.
-  // Post-processing (thresholding, background/feature detection) is done in paletteAnalyzer.js
-
-  return palette;
+    .filter(Boolean);
 }

@@ -78,84 +78,216 @@
       <canvas id="hiddenCanvas" style="display: none"></canvas>
 
       <div class="dashboard-container">
-        <div class="palette-section">
-        <h2>提取的调色板</h2>
-        <canvas id="paletteCanvas"></canvas>
-        <p id="palettePlaceholder">请选择图片以生成调色板。</p>
-        <div class="export-buttons">
-          <!-- Export buttons for palette -->
-          <button id="savePaletteImageBtn">保存调色板图片</button>
-          <button id="savePaletteDataBtn">保存调色板数据</button>
-        </div>
-      </div>
-
-      <div class="analysis-dashboard">
-        <!-- Color Analysis Section -->
-        <div class="color-analysis-section">
-        <h2>色彩倾向分析</h2>
-
-        <div class="stats-summary">
-          <h3>统计摘要:</h3>
-          <p id="hsvStats"></p>
-          <p id="labStats"></p>
-        </div>
-
-        <div class="histograms-2d-viz">
-          <h3>颜色分布图:</h3>
-          <div class="histograms-container">
-            <div class="chart-container">
-              <canvas id="histH"></canvas>
-              <p>色相 (Hue)</p>
-            </div>
-            <div class="chart-container">
-              <canvas id="histS"></canvas>
-              <p>饱和度 (Saturation)</p>
-            </div>
-            <div class="chart-container">
-              <canvas id="histV"></canvas>
-              <p>明度 (Value)</p>
-            </div>
-            <div class="chart-container">
-              <canvas id="histL"></canvas>
-              <p>明度 (L*)</p>
-            </div>
-            <div class="chart-container">
-              <canvas id="hista"></canvas>
-              <p>红-绿 (a*)</p>
-            </div>
-            <div class="chart-container">
-              <canvas id="histb"></canvas>
-              <p>黄-蓝 (b*)</p>
+        <div class="left-panel">
+          <div class="palette-section">
+            <h2>
+              提取的调色板<span class="tooltip"
+                >?<span class="tooltiptext"
+                  >基于 Median-Cut + K-Means 实现的快速色板算法，由于
+                  K-means
+                  结果受初始化方法影响，不同尝试间可能生成的色板间略有差异。</span
+                ></span
+              >
+            </h2>
+            <div class="palette-controls">
+              <button id="reRenderPaletteBtn">重新渲染调色板</button>
+              <div class="palette-params">
+                <div class="params-basic">
+                  <h3>基本参数</h3>
+                  <div class="param-group">
+                    <label for="maxColors"
+                      >最大颜色数量:
+                      <span class="tooltip"
+                        >?<span class="tooltiptext"
+                          >控制最终色板中最多显示多少种颜色。增加该值会使色板包含更多的颜色，减少则会使色板更加简化。</span
+                        ></span
+                      >
+                    </label>
+                    <input
+                      type="range"
+                      id="maxColors"
+                      min="2"
+                      max="50"
+                      value="20"
+                    />
+                    <span id="maxColorsValue">20</span>
+                  </div>
+                </div>
+                <div class="params-advanced">
+                  <button id="toggleAdvancedBtn">显示高级参数</button>
+                  <div class="advanced-content" style="display: none">
+                    <div class="param-group">
+                      <label for="minColors"
+                        >最小颜色数量:
+                        <span class="tooltip"
+                          >?<span class="tooltiptext"
+                            >控制最终色板中最少显示多少种颜色。增加该值会使色板保留更多的颜色，减少则会使色板更加简化。</span
+                          ></span
+                        >
+                      </label>
+                      <input
+                        type="range"
+                        id="minColors"
+                        min="2"
+                        max="20"
+                        value="8"
+                      />
+                      <span id="minColorsValue">8</span>
+                    </div>
+                    <div class="param-group">
+                      <label for="featureThreshold"
+                        >特色阈值:
+                        <span class="tooltip"
+                          >?<span class="tooltiptext"
+                            >控制识别特征颜色的阈值。基于 LAB
+                            距离，较高的值会使算法标记出更多的特色颜色。</span
+                          ></span
+                        >
+                      </label>
+                      <input
+                        type="range"
+                        id="featureThreshold"
+                        min="5"
+                        max="100"
+                        value="50"
+                        step="1"
+                      />
+                      <span id="featureThresholdValue">50</span>
+                    </div>
+                    <div class="param-group">
+                      <label for="maxSplit"
+                        >最大分裂:
+                        <span class="tooltip"
+                          >?<span class="tooltiptext"
+                            >控制Median
+                            Cut算法的分裂次数。增加该值会使初始调色板包含更多的颜色，减少则会使初始调色板更加简化。</span
+                          ></span
+                        >
+                      </label>
+                      <input
+                        type="range"
+                        id="maxSplit"
+                        min="20"
+                        max="200"
+                        value="50"
+                      />
+                      <span id="maxSplitValue">50</span>
+                    </div>
+                    <div class="param-group">
+                      <label for="mergeIntensity"
+                        >合并烈度:
+                        <span class="tooltip"
+                          >?<span class="tooltiptext"
+                            >控制颜色合并的强度。基于 LAB
+                            距离，在保证minColors的前提下，保证尽可能多的簇间的
+                            LAB 距离高于该值。</span
+                          ></span
+                        >
+                      </label>
+                      <input
+                        type="range"
+                        id="mergeIntensity"
+                        min="0"
+                        max="3.0"
+                        value="1.0"
+                        step="0.1"
+                      />
+                      <span id="mergeIntensityValue">0.1</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <canvas id="paletteCanvas"></canvas>
+              <p id="palettePlaceholder">请选择图片以生成调色板。</p>
+              <div class="export-buttons">
+                <!-- Export buttons for palette -->
+                <button id="savePaletteImageBtn">保存调色板图片</button>
+                <button id="savePaletteDataBtn">保存调色板数据</button>
+              </div>
             </div>
           </div>
 
-          <div class="lab-scatter-section">
-            <div class="chart-container large-chart">
-              <canvas id="labScatter" width="1200" height="600"></canvas>
-              <p>Lab a*b* 分布</p>
+          <div class="color-sphere-section">
+            <h2>Lab 色彩空间 (3D)</h2>
+            <div id="sphereContainer">
+              <!-- Three.js will render its canvas here -->
+            </div>
+            <p id="spherePlaceholder">请选择图片以生成 3D 色球。</p>
+            <div class="export-buttons">
+              <!-- Export button for 3D sphere -->
+              <button id="saveSphereImageBtn">保存 3D 色球图片</button>
             </div>
           </div>
-          <!-- No explicit export button for 2D charts for MVP, user can screenshot -->
         </div>
-      </div>
 
-      <!-- 3D Color Sphere Section -->
-      <div class="color-sphere-section">
-        <h2>Lab 色彩空间 (3D)</h2>
-        <div id="sphereContainer">
-          <!-- Three.js will render its canvas here -->
+        <div class="right-panel">
+          <div class="color-analysis-section">
+            <h2>色彩倾向分析</h2>
+
+            <h3>统计摘要:</h3>
+            <div class="stats-summary">
+              <p id="hsvStats"></p>
+              <p id="labStats"></p>
+            </div>
+
+            <div class="histograms-2d-viz">
+              <h3>颜色分布图:</h3>
+              <div class="histograms-container">
+                <div class="chart-container">
+                  <canvas id="histH"></canvas>
+                  <p>色相 (Hue)</p>
+                </div>
+                <div class="chart-container">
+                  <canvas id="histS"></canvas>
+                  <p>饱和度 (Saturation)</p>
+                </div>
+                <div class="chart-container">
+                  <canvas id="histV"></canvas>
+                  <p>明度 (Value)</p>
+                </div>
+                <div class="chart-container">
+                  <canvas id="histL"></canvas>
+                  <p>明度 (L*)</p>
+                </div>
+                <div class="chart-container">
+                  <canvas id="hista"></canvas>
+                  <p>红-绿 (a*)</p>
+                </div>
+                <div class="chart-container">
+                  <canvas id="histb"></canvas>
+                  <p>黄-蓝 (b*)</p>
+                </div>
+              </div>
+
+              <div class="lab-scatter-section">
+                <div class="chart-container large-chart">
+                  <canvas
+                    id="labScatter"
+                    width="1200"
+                    height="600"
+                  ></canvas>
+                  <p>Lab a*b* 分布</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <p id="spherePlaceholder">请选择图片以生成 3D 色球。</p>
-        <div class="export-buttons">
-          <!-- Export button for 3D sphere -->
-          <button id="saveSphereImageBtn">保存 3D 色球图片</button>
-        </div>
-      </div>
       </div>
     </div>
     <!-- End of content-wrapper -->
 
     <!-- Note: Script tags with type="module" do not need to be at the end of body. -->
     <!-- They have 'defer' behavior by default. -->
+
+    <footer>
+      <div>
+        <a
+          href="https://github.com/AkutaZehy/color-compass"
+          target="_blank"
+          >Github</a
+        >
+        我们尊重您的隐私。事实上，这个项目是纯前端项目，因此您的数据均将会在本地处理，不会上传到服务器（我们也没有！）
+      </div>
+    </footer>
   </body>
 </html>

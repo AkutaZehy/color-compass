@@ -66,7 +66,7 @@ const labToSphereCoords = (lab) => {
  * @param {number} pixelSampleFactor - Process every Nth pixel for performance.
  * @returns {{renderer: THREE.WebGLRenderer, controls: OrbitControls, scene: THREE.Scene, camera: THREE.PerspectiveCamera}|null} Object containing renderer, controls, scene, camera, or null on error.
  */
-export function setupSphereScene (container, pixelData, imageWidth, imageHeight, pixelSampleFactor = 200) {
+export function setupSphereScene (container, pixelData, imageWidth, imageHeight, pixelSampleFactor = 100000) {
   // Dispose previous scene to free resources
   disposeScene();
 
@@ -137,11 +137,55 @@ export function setupSphereScene (container, pixelData, imageWidth, imageHeight,
 
   // Draw Sphere Outline and Grid
   // SphereGeometry(radius, widthSegments, heightSegments)
-  const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
-  const wireframe = new THREE.WireframeGeometry(sphereGeometry);
-  const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x888888, linewidth: 1 });
-  const wireframeMesh = new THREE.LineSegments(wireframe, wireframeMaterial);
-  scene.add(wireframeMesh);
+  // 参数设置
+  const segments = 64; // 每条线的分段数（越高越平滑）
+  const radius = sphereRadius; // 球体半径
+
+  // 创建经线（8条，从0°到360°，每45°一条）
+  for (let i = 0; i < 8; i++) {
+    const longitudeLineGeometry = new THREE.BufferGeometry();
+    const longitudePoints = [];
+    const theta = (i / 8) * Math.PI * 2; // 经度角度（0~2π）
+
+    // 从南极到北极生成点
+    for (let j = 0; j <= segments; j++) {
+      const phi = (j / segments) * Math.PI; // 纬度角度（0~π）
+      const x = radius * Math.sin(phi) * Math.cos(theta);
+      const y = radius * Math.cos(phi);
+      const z = radius * Math.sin(phi) * Math.sin(theta);
+      longitudePoints.push(new THREE.Vector3(x, y, z));
+    }
+
+    longitudeLineGeometry.setFromPoints(longitudePoints);
+    const longitudeLine = new THREE.Line(
+      longitudeLineGeometry,
+      new THREE.LineBasicMaterial({ color: 0x888888, linewidth: 1 })
+    );
+    scene.add(longitudeLine);
+  }
+
+  // 创建纬线（8条，从-90°到90°，每22.5°一条）
+  for (let i = 1; i < 8; i++) {
+    const latitudeLineGeometry = new THREE.BufferGeometry();
+    const latitudePoints = [];
+    const phi = (i / 8) * Math.PI; // 纬度角度（π/8 ~ 7π/8）
+
+    // 绕赤道生成点
+    for (let j = 0; j <= segments; j++) {
+      const theta = (j / segments) * Math.PI * 2; // 经度角度（0~2π）
+      const x = radius * Math.sin(phi) * Math.cos(theta);
+      const y = radius * Math.cos(phi);
+      const z = radius * Math.sin(phi) * Math.sin(theta);
+      latitudePoints.push(new THREE.Vector3(x, y, z));
+    }
+
+    latitudeLineGeometry.setFromPoints(latitudePoints);
+    const latitudeLine = new THREE.Line(
+      latitudeLineGeometry,
+      new THREE.LineBasicMaterial({ color: 0x888888, linewidth: 1 })
+    );
+    scene.add(latitudeLine);
+  }
 
   // Optional: Add axes lines for L*, a*, b* direction?
 

@@ -56,6 +56,106 @@ document.addEventListener('DOMContentLoaded', () => {
   const uploadedImage = document.getElementById('uploadedImage'); // Image display
   const hiddenCanvas = document.getElementById('hiddenCanvas'); // Hidden canvas for pixel data
   const paletteCanvas = document.getElementById('paletteCanvas'); // Palette canvas
+  const reRenderPaletteBtn = document.getElementById('reRenderPaletteBtn'); // Re-render button
+  const toggleAdvancedBtn = document.getElementById('toggleAdvancedBtn'); // Toggle advanced params
+
+  // Parameter controls
+  const maxColorsInput = document.getElementById('maxColors');
+  const minColorsInput = document.getElementById('minColors');
+  const featureThresholdInput = document.getElementById('featureThreshold');
+  const maxSplitInput = document.getElementById('maxSplit');
+  const mergeIntensityInput = document.getElementById('mergeIntensity');
+
+  // Parameter value displays
+  const maxColorsValue = document.getElementById('maxColorsValue');
+  const minColorsValue = document.getElementById('minColorsValue');
+  const featureThresholdValue = document.getElementById('featureThresholdValue');
+  const maxSplitValue = document.getElementById('maxSplitValue');
+  const mergeIntensityValue = document.getElementById('mergeIntensityValue');
+
+  // Initialize parameter controls
+  function initParamControls () {
+    // Set initial values
+    maxColorsInput.value = paletteParams.maxColors;
+    minColorsInput.value = paletteParams.minColors;
+    featureThresholdInput.value = paletteParams.featureThreshold;
+    maxSplitInput.value = paletteParams.maxSplit;
+    mergeIntensityInput.value = paletteParams.mergeIntensity;
+
+    // Update displayed values
+    maxColorsValue.textContent = paletteParams.maxColors;
+    minColorsValue.textContent = paletteParams.minColors;
+    featureThresholdValue.textContent = paletteParams.featureThreshold;
+    maxSplitValue.textContent = paletteParams.maxSplit;
+    mergeIntensityValue.textContent = paletteParams.mergeIntensity.toFixed(1);
+
+    // Add event listeners
+    maxColorsInput.addEventListener('input', updateParamsFromControls);
+    minColorsInput.addEventListener('input', updateParamsFromControls);
+    featureThresholdInput.addEventListener('input', updateParamsFromControls);
+    maxSplitInput.addEventListener('input', updateParamsFromControls);
+    mergeIntensityInput.addEventListener('input', updateParamsFromControls);
+
+    // Toggle advanced params
+    toggleAdvancedBtn.addEventListener('click', () => {
+      const advancedContent = document.querySelector('.advanced-content');
+      const isHidden = advancedContent.style.display === 'none';
+      advancedContent.style.display = isHidden ? 'block' : 'none';
+      toggleAdvancedBtn.textContent = isHidden ? '隐藏高级参数' : '显示高级参数';
+    });
+  }
+
+  // Update params from control values
+  function updateParamsFromControls () {
+    paletteParams.maxColors = parseInt(maxColorsInput.value);
+    paletteParams.minColors = parseInt(minColorsInput.value);
+    paletteParams.featureThreshold = parseInt(featureThresholdInput.value);
+    paletteParams.maxSplit = parseInt(maxSplitInput.value);
+    paletteParams.mergeIntensity = parseFloat(mergeIntensityInput.value);
+
+    // Update displayed values
+    maxColorsValue.textContent = paletteParams.maxColors;
+    minColorsValue.textContent = paletteParams.minColors;
+    featureThresholdValue.textContent = paletteParams.featureThreshold;
+    maxSplitValue.textContent = paletteParams.maxSplit;
+    mergeIntensityValue.textContent = paletteParams.mergeIntensity.toFixed(1);
+  }
+
+  // Initialize controls
+  initParamControls();
+
+  // Add re-render button event listener
+  reRenderPaletteBtn.addEventListener('click', () => {
+    if (currentPixelData && currentImageSize.width > 0 && currentImageSize.height > 0) {
+      console.log("Re-rendering palette with current parameters...");
+
+      console.log(paletteParams);
+
+      const totalPixels = currentImageSize.width * currentImageSize.height;
+
+      // Extract and analyze palette with current parameters
+      const rawPalette = extractPaletteMedianCut(currentPixelData, paletteParams.maxSplit);
+      const analyzedPalette = analyzePalette(
+        rawPalette,
+        paletteParams.featureThreshold,
+        totalPixels,
+        paletteParams.mergeIntensity,
+        paletteParams.maxColors,
+        paletteParams.minColors
+      );
+
+      // Sort and render palette
+      analyzedPalette.sort((a, b) => a.lab[0] - b.lab[0]);
+      drawPalette(analyzedPalette, paletteCanvas, totalPixels);
+
+      // Store the new palette
+      currentAnalyzedPalette = analyzedPalette;
+
+      console.log("Palette re-rendered with current parameters.");
+    } else {
+      console.warn("Cannot re-render palette: no pixel data available.");
+    }
+  });
 
   // Color analysis elements
   const colorAnalysisSection = document.querySelector('.color-analysis-section');
@@ -144,6 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadImageAndDisplay(file, uploadedImage)
       .then(loadedImgElement => {
         console.log("Image loading and display successful. Now getting pixel data...");
+        document.querySelector('.dashboard-container').style.display = 'flex';
 
         // Store image size
         currentImageSize = { width: loadedImgElement.naturalWidth, height: loadedImgElement.naturalHeight };
@@ -162,14 +263,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // --- Step 3: Extract, Analyze, and Render Palette ---
           console.log("Extracting and analyzing palette...");
-          // Hardcoded parameters for now (TODO: add UI inputs)
-          const maxColors = 12;
-          const colorThreshold = 20; // Delta E threshold
-
-          const rawPalette = extractPaletteMedianCut(pixelData, maxColors);
+          // Use parameters from controls
+          const rawPalette = extractPaletteMedianCut(currentPixelData, paletteParams.maxSplit);
           console.log(`Raw palette extracted (${rawPalette.length} colors).`);
-
-          const analyzedPalette = analyzePalette(rawPalette, colorThreshold, totalPixels);
+          const analyzedPalette = analyzePalette(
+            rawPalette,
+            paletteParams.featureThreshold,
+            totalPixels,
+            paletteParams.mergeIntensity,
+            paletteParams.maxColors,
+            paletteParams.minColors
+          );
           console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
 
           // Store the analyzed palette data for export
@@ -295,6 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function hideResults () {
     uploadedImage.style.display = 'none';
     uploadedImage.src = '#'; // Reset image src
+    document.querySelector('.dashboard-container').style.display = 'none';
 
     // Hide palette results (drawPalette([], ...) handles canvas and buttons)
     drawPalette([], paletteCanvas, 0);
