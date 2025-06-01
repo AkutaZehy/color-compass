@@ -91,7 +91,7 @@ h3 {
 }
 
 .dashboard-container {
-  display: flex;
+  display: none;
   align-items: stretch;
   /* Initially hidden */
   flex-direction: row;
