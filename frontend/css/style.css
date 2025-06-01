@@ -9,10 +9,13 @@ body {
 }
 
 h1,
-h2 {
+h2,
+h3 {
   text-align: center;
   color: #ffffff;
   margin-bottom: 15px;
+  margin-top: 25px;
+  /* Add some space above section titles */
 }
 
 .input-section {
@@ -24,7 +27,6 @@ h2 {
   margin-top: 20px;
   text-align: center;
   margin-bottom: 30px;
-  /* 在图片下方留出一些空间 */
 }
 
 #uploadedImage {
@@ -35,32 +37,92 @@ h2 {
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
 }
 
-.palette-section {
+.palette-section,
+.color-analysis-section {
+  /* Apply similar styling to analysis section */
   margin-top: 30px;
   padding: 20px;
   background-color: #2a2a2a;
-  /* 调色板区域的背景色 */
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  /* text-align: center; /* Remove text-align: center here if needed for left-aligned text stats */
+}
+
+.stats-summary {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #333;
+  border-radius: 5px;
+}
+
+.stats-summary p {
+  margin: 8px 0;
+  text-align: left;
+  /* Align text left in the summary */
+  padding-left: 10px;
+}
+
+
+.histograms-2d-viz h3 {
+  margin-bottom: 20px;
+}
+
+.histograms-container {
+  display: grid;
+  /* Use CSS Grid for histogram layout */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  /* Responsive columns */
+  gap: 20px;
+  /* Space between histograms */
+  margin-bottom: 30px;
+}
+
+.chart-container {
   text-align: center;
-  /* 居中内容 */
+  /* Center canvas and its description */
+}
+
+.chart-container canvas {
+  display: block;
+  /* Canvas takes up full width of its container */
+  margin: 0 auto;
+  /* Center block element */
+  border: 1px solid #444;
+  background-color: #333;
+  /* Set a base height for the histograms, adjust as needed */
+  height: 150px;
+  width: 100%;
+  /* Will be managed by grid minmax, but good default */
+}
+
+.chart-container p {
+  margin-top: 10px;
+  font-size: 0.9em;
+  color: #aaa;
+}
+
+.large-chart canvas {
+  height: 300px;
+  /* Larger height for the scatter plot */
+  width: 100%;
+}
+
+/* Initially hide the analysis section until image is loaded */
+.color-analysis-section {
+  display: none;
 }
 
 #paletteCanvas {
-  /* Canvas 默认是 inline 元素，display: block 可以独占一行 */
-  display: block;
+  display: none;
+  /* Initially hidden */
   margin: 0 auto;
-  /* 配合 text-align: center 无法让 block 元素居中，需要 auto margin */
   border: 1px solid #444;
   background-color: #333;
-  /* Canvas 背景色 */
-  /* 可以设置最大宽度，防止在小屏幕上过宽 */
   max-width: 100%;
-  /* 初始隐藏，直到有内容绘制 */
-  display: none;
 }
 
 #palettePlaceholder {
   font-style: italic;
   color: #888;
+  text-align: center;
 }
