@@ -3,42 +3,40 @@
 ![License](https://img.shields.io/github/license/AkutaZehy/color-compass?style=flat-square)
 ![Repo Size](https://img.shields.io/github/repo-size/AkutaZehy/color-compass?style=flat-square)
 
-## ✨ Introduction
+## ✨ 简介
 
-**Color Compass** is a lightweight, user-friendly tool designed to extract color palettes from images and visualize color spaces in 3D. It aims to provide a simple yet effective way to explore and understand colors without the complexity of deep learning or heavy libraries.
+**Color Compass** 是一款轻量级、用户友好的工具，旨在从图像中提取调色板，并以 3D 形式可视化色彩空间。旨在提供一种简单有效的方法来探索和理解插画的风格和色彩，而无需复杂的深度学习或繁重的库。
 
-## 🎨 Features
+## 🎨 功能
 
-- **Palette Extraction:** Efficiently extract color palettes from images using classic algorithms like Median Cut.
-- **Color Sphere Visualization:** Visualize color spaces in 3D, including RGB, HSL, and Lab color models.
-- **User-Friendly Interface:** Intuitive UI for easy interaction, with real-time updates and visual feedback.
+- **调色板提取**：使用 Median Cut 等经典算法高效地从图像中提取调色板。
+- **颜色球可视化**：以 3D 形式可视化色彩空间，使用 Lab 颜色模型。
+- **用户友好界面**：直观的用户界面，易于交互，并提供实时更新和可视化反馈。
 
-## 🚀 Quick Start
+## 🚀 快速入门
 
-### JavaScript Web Version
+### JavaScript Web 版本
 
-RIGHT OUT OF THE BOX, NO NEED TO INSTALL!
+开箱即用，无需安装！
 
-If you want to deploy the version locally, VSCode Live Server is recommended. 
+本地部署此版本建议使用 VSCode Live Server。~~纯前端，NodeJS 都不用~~
 
-~~btw there's even no need to install Node.js, it's a pure HTML/CSS/JS project.~~
+### C# 桌面版本
 
-### C# Desktop Version
+绝赞画饼中。
 
-TEMPORARILY PIE IN THE SKY, COMING SOON!
+## 🤝 贡献
 
-## 🤝 Contributiion
+我们欢迎贡献！如果您有任何想法、错误报告或功能请求，请打开问题或提交拉取请求。
 
-We welcome contributions! If you have ideas, bug reports, or feature requests, please open an issue or submit a pull request.
+## 📜 许可证
 
-## 📜 License
+本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+## ✨ 致谢
 
-## ✨ Acknowledgements
-
-Temporarily no acknowledgements, but feel free to contribute!
+暂时不设致谢，欢迎大家贡献！
 
 ---
 
-**ENJOY YOUR WAY TO EXPLORE COLORS!** 🌈
+**尽情探索颜色！** 🌈
