@@ -58,11 +58,16 @@
       <h1>Color Compass</h1>
 
       <div class="input-section">
-        <label for="imageInput"
-          >选择一张图片文件 (.jpg, .png, etc.):</label
-        >
-        <input type="file" id="imageInput" accept="image/*" />
-        <!-- TODO: Add input for max palette colors, color threshold, 3D sampling, grid lines -->
+        <div id="uploadArea" class="upload-area">
+          <div class="upload-instructions">
+            <p>拖拽图片到此处 或</p>
+            <label for="imageInput" class="file-input-label">
+              选择图片文件
+              <input type="file" id="imageInput" accept="image/*" />
+            </label>
+            <p class="paste-hint">或直接粘贴图片 (Ctrl+V)</p>
+          </div>
+        </div>
       </div>
 
       <div class="image-display">

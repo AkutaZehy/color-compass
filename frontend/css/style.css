@@ -26,6 +26,50 @@ h3 {
   text-align: center;
 }
 
+.upload-area {
+  border: 2px dashed #555;
+  border-radius: 8px;
+  padding: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 0 auto;
+  max-width: 500px;
+}
+
+.upload-area.dragover {
+  border-color: #4CAF50;
+  background-color: rgba(76, 175, 80, 0.1);
+}
+
+.upload-instructions {
+  color: #aaa;
+}
+
+.file-input-label {
+  display: inline-block;
+  padding: 8px 15px;
+  background-color: #555;
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.file-input-label:hover {
+  background-color: #777;
+}
+
+.file-input-label input[type="file"] {
+  display: none;
+}
+
+.paste-hint {
+  font-size: 0.9em;
+  color: #888;
+  margin-top: 10px;
+}
+
 .image-display {
   margin-top: 20px;
   text-align: center;

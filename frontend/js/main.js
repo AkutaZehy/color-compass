@@ -1,6 +1,7 @@
 // frontend/js/main.js
 
 // Import functions/classes from other modules
+// loadImageAndDisplay still takes a File, but it uses FileReader internally which handles Blobs as well.
 import { loadImageAndDisplay, getCanvasPixelData } from './imageHandler.js';
 import { extractPaletteMedianCut } from './medianCut.js';
 import { analyzePalette } from './paletteAnalyzer.js';
@@ -9,30 +10,32 @@ import { calculateColorStats } from './colorStats.js';
 import { drawHistogram, drawLabScatterPlotRevised } from './visualization2D.js';
 import { setupSphereScene, disposeScene, exportSphereAsImage } from './sphereRenderer3D.js'; // Import setup, dispose, and export function
 import { saveTextFile, saveDataUrlAsFile } from './fileSaver.js'; // Import file saver utilities
-import { rgbToHex } from './colorUtils.js'; // <-- FIX: Import rgbToHex here
+import { rgbToHex } from './colorUtils.js'; // Make sure this is imported
 
 
 // --- State Variables ---
-// Variables to store data/objects needed for export buttons and cleanup
+// Variables to store data/objects needed for export buttons, cleanup, and re-processing
 let currentAnalyzedPalette = null; // Stores the processed palette data
 let currentSphereRenderer = null; // Stores the Three.js renderer instance
-let currentScene = null; // <-- Add variable for Three.js scene
-let currentCamera = null; // <-- Add variable for Three.js camera
+let currentScene = null; // Stores the Three.js scene instance
+let currentCamera = null; // Stores the Three.js camera instance
 let currentImageFilename = 'image'; // Stores the base filename for exports
 let currentImageSize = { width: 0, height: 0 }; // Stores the loaded image dimensions for percentage calculation
+let currentPixelData = null; // Store pixel data to allow re-generating palette/3D from controls
 
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log("DOM fully loaded and parsed.");
 
   // --- Get HTML Elements ---
-  const imageInput = document.getElementById('imageInput');
-  const uploadedImage = document.getElementById('uploadedImage');
-  const hiddenCanvas = document.getElementById('hiddenCanvas');
-  const paletteCanvas = document.getElementById('paletteCanvas');
+  const imageInput = document.getElementById('imageInput'); // File input
+  const uploadArea = document.getElementById('uploadArea'); // Drag and drop area
+  const uploadedImage = document.getElementById('uploadedImage'); // Image display
+  const hiddenCanvas = document.getElementById('hiddenCanvas'); // Hidden canvas for pixel data
+  const paletteCanvas = document.getElementById('paletteCanvas'); // Palette canvas
 
-  // Step 4: Get analysis elements
-  const colorAnalysisSection = document.querySelector('.color-analysis-section'); // The main analysis div
+  // Color analysis elements
+  const colorAnalysisSection = document.querySelector('.color-analysis-section');
   const hsvStatsParagraph = document.getElementById('hsvStats');
   const labStatsParagraph = document.getElementById('labStats');
   const histHCanvas = document.getElementById('histH');
@@ -43,23 +46,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const histBCanvas = document.getElementById('histb');
   const labScatterCanvas = document.getElementById('labScatter');
 
-  // Step 5: Get sphere elements
+  // 3D sphere elements
   const colorSphereSection = document.querySelector('.color-sphere-section');
   const sphereContainer = document.getElementById('sphereContainer');
   const spherePlaceholder = document.getElementById('spherePlaceholder');
 
-  // Step 6: Get Export Buttons
+  // Export Buttons
   const savePaletteImageBtn = document.getElementById('savePaletteImageBtn');
   const savePaletteDataBtn = document.getElementById('savePaletteDataBtn');
   const saveSphereImageBtn = document.getElementById('saveSphereImageBtn');
 
-  // Get export button containers (to show/hide the buttons)
+  // Export button containers
   const paletteExportButtonsDiv = document.querySelector('.palette-section .export-buttons');
   const sphereExportButtonsDiv = document.querySelector('.color-sphere-section .export-buttons');
 
 
   // --- Check Necessary Elements Exist ---
-  if (!imageInput || !uploadedImage || !hiddenCanvas || !paletteCanvas ||
+  if (!imageInput || !uploadArea || !uploadedImage || !hiddenCanvas || !paletteCanvas ||
     !colorAnalysisSection || !hsvStatsParagraph || !labStatsParagraph ||
     !histHCanvas || !histSCanvas || !histVCanvas ||
     !histLCanvas || !histACanvas || !histBCanvas || !labScatterCanvas ||
@@ -72,19 +75,349 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Initial State: Hide Sections and Buttons ---
-  paletteCanvas.style.display = 'none';
-  colorAnalysisSection.style.display = 'none';
-  colorSphereSection.style.display = 'none';
-  spherePlaceholder.style.display = 'block'; // Show sphere placeholder initially
-  paletteExportButtonsDiv.style.display = 'none'; // Hide buttons initially
-  sphereExportButtonsDiv.style.display = 'none'; // Hide buttons initially
+  hideResults();
 
 
-  // --- Step 6: Add Event Listeners for Export Buttons ---
+  // --- Unified Image Processing Function ---
+  /**
+   * Cleans up previous results and processes a new image file.
+   * This function orchestrates the entire analysis workflow.
+   * @param {File | Blob} file - The image file or blob to process.
+   * @param {string} filename - The original filename (or a descriptive name).
+   */
+  function processImageFile (file, filename) {
+    // Cleanup previous results and state
+    hideResults();
+    disposeScene(); // Dispose previous 3D scene resources
+    resetStateVariables(); // Reset state variables
+
+    // Basic file/blob validation
+    if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
+      console.error("Invalid input: Provided object is not a valid File or Blob.", file);
+      alert("无效的文件或图片数据。");
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      console.error("Invalid input: Provided file is not an image type.", file.type);
+      alert("请选择或粘贴图片文件。");
+      return;
+    }
+    if (file.size === 0) {
+      console.warn("Provided file is empty.");
+      alert("文件内容为空。");
+      return;
+    }
+
+
+    console.log(`Processing image: ${filename}`);
+    // Set base filename, removing extension. Use 'image' as fallback.
+    currentImageFilename = filename ? filename.split('.').slice(0, -1).join('.') || 'image' : 'pasted_image';
+
+
+    // Show loading indicator or message? TODO
+
+    // Load and display the image using imageHandler
+    // loadImageAndDisplay takes a File/Blob, uses FileReader, and loads into an <img>
+    loadImageAndDisplay(file, uploadedImage)
+      .then(loadedImgElement => {
+        console.log("Image loading and display successful. Now getting pixel data...");
+
+        // Store image size
+        currentImageSize = { width: loadedImgElement.naturalWidth, height: loadedImgElement.naturalHeight };
+
+        // --- Step 2: Get Pixel Data ---
+        const pixelData = getCanvasPixelData(loadedImgElement, hiddenCanvas);
+        const width = currentImageSize.width;
+        const height = currentImageSize.height;
+        const totalPixels = width * height;
+
+        if (pixelData && totalPixels > 0) {
+          console.log(`Successfully retrieved pixel data: ${pixelData.length} bytes for ${width}x${height} image.`);
+
+          // Store pixel data globally for potential re-processing (e.g., palette options)
+          currentPixelData = pixelData;
+
+          // --- Step 3: Extract, Analyze, and Render Palette ---
+          console.log("Extracting and analyzing palette...");
+          // Hardcoded parameters for now (TODO: add UI inputs)
+          const maxColors = 12;
+          const colorThreshold = 20; // Delta E threshold
+
+          const rawPalette = extractPaletteMedianCut(pixelData, maxColors);
+          console.log(`Raw palette extracted (${rawPalette.length} colors).`);
+
+          const analyzedPalette = analyzePalette(rawPalette, colorThreshold, totalPixels);
+          console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
+
+          // Store the analyzed palette data for export
+          currentAnalyzedPalette = analyzedPalette;
+
+          // Sort for display (e.g., by luminance)
+          analyzedPalette.sort((a, b) => a.lab[0] - b.lab[0]);
+
+          // Draw palette to canvas (This function also handles showing palette buttons)
+          drawPalette(analyzedPalette, paletteCanvas, totalPixels);
+          console.log("Palette rendered to canvas.");
+
+
+          // --- Step 4: Calculate Stats and Draw 2D Visualizations ---
+          console.log("Calculating color stats and drawing 2D visualizations...");
+
+          const colorStats = calculateColorStats(pixelData, width, height);
+
+          if (colorStats) {
+            // Display stats summary
+            hsvStatsParagraph.textContent =
+              `平均 HSV: H=${colorStats.hsv.avg[0].toFixed(3)}, S=${colorStats.hsv.avg[1].toFixed(3)}, V=${colorStats.hsv.avg[2].toFixed(3)} ` +
+              `| 标准差: H=${colorStats.hsv.stdDev[0].toFixed(3)}, S=${colorStats.hsv.stdDev[1].toFixed(3)}, V=${colorStats.hsv.stdDev[2].toFixed(3)}`;
+
+            labStatsParagraph.textContent =
+              `平均 Lab: L*=${colorStats.lab.avg[0].toFixed(3)}, a*=${colorStats.lab.avg[1].toFixed(3)}, b*=${colorStats.lab.avg[2].toFixed(3)} ` +
+              `| 标准差: L*=${colorStats.lab.stdDev[0].toFixed(3)}, a*=${colorStats.lab.stdDev[1].toFixed(3)}, b*=${colorStats.lab.stdDev[2].toFixed(3)}`; // Corrected b* stdDev index
+
+            // Draw Histograms
+            const binCount = 60; // Number of bars in histogram
+            drawHistogram(histHCanvas, colorStats.rawValues.h, "Hue", 0, 1, binCount);
+            drawHistogram(histSCanvas, colorStats.rawValues.s, "Saturation", 0, 1, binCount);
+            drawHistogram(histVCanvas, colorStats.rawValues.v, "Value", 0, 1, binCount);
+            drawHistogram(histLCanvas, colorStats.rawValues.l, "L*", 0, 100, binCount);
+            // Use a reasonable range for a* and b* histograms
+            drawHistogram(histACanvas, colorStats.rawValues.a, "a*", -100, 100, binCount);
+            drawHistogram(histBCanvas, colorStats.rawValues.b, "b*", -100, 100, binCount);
+
+            // Draw Lab a*b* Scatter Plot
+            // Sample factor 100 means process every 100th pixel
+            drawLabScatterPlotRevised(labScatterCanvas, pixelData, width, height, 100);
+
+
+            // Show the analysis section
+            colorAnalysisSection.style.display = 'block';
+
+            console.log("Color stats calculated and 2D visualizations rendered.");
+
+            // --- Step 5: Setup and Render 3D Sphere ---
+            console.log("Preparing to setup 3D color sphere...");
+
+            // Show the container BEFORE setup so it has dimensions
+            spherePlaceholder.style.display = 'none';
+            colorSphereSection.style.display = 'block'; // This will ensure container has dimensions
+
+            // Use requestAnimationFrame to wait for layout calculation before 3D setup
+            requestAnimationFrame(() => {
+              console.log("Attempting to setup 3D color sphere after next frame...");
+
+              // Re-get container element inside raf - although not strictly needed
+              const sphereContainer = document.getElementById('sphereContainer');
+              // pixelData, width, height are still accessible via closure
+
+              // Call the 3D setup function and store the returned object
+              // Sample factor 200 means process every 200th pixel for 3D points
+              const sphereSceneInfo = setupSphereScene(sphereContainer, pixelData, width, height, 200);
+
+              if (sphereSceneInfo) { // Check if setup was successful (returned non-null)
+                console.log("3D scene setup successful.");
+                // Store the references returned by setupSphereScene
+                currentSphereRenderer = sphereSceneInfo.renderer;
+                currentScene = sphereSceneInfo.scene;
+                currentCamera = sphereSceneInfo.camera;
+
+                // 3D export buttons are shown inside setupSphereScene on success
+
+              } else {
+                console.error("Failed to setup 3D scene.");
+                // Hide sphere section and buttons if setup failed
+                colorSphereSection.style.display = 'none'; // Hide the section again
+                spherePlaceholder.style.display = 'block'; // Show placeholder again
+                const sphereExportButtonsDiv = document.querySelector('.color-sphere-section .export-buttons'); // Re-get button div
+                if (sphereExportButtonsDiv) sphereExportButtonsDiv.style.display = 'none'; // Ensure buttons are hidden
+              }
+              console.log("3D color sphere setup sequence complete.");
+            }); // End of requestAnimationFrame callback
+
+
+          } else {
+            console.error("Failed to calculate color stats.");
+            // Hide analysis and sphere sections if stats fail
+            colorAnalysisSection.style.display = 'none';
+            colorSphereSection.style.display = 'none';
+            spherePlaceholder.style.display = 'block';
+            const sphereExportButtonsDiv = document.querySelector('.color-sphere-section .export-buttons');
+            if (sphereExportButtonsDiv) sphereExportButtonsDiv.style.display = 'none';
+          }
+
+          console.log("\nProcessing complete for image.");
+
+
+        } else {
+          console.error("Failed to get pixel data from canvas or image size is zero.");
+          alert("无法处理图片像素数据。");
+          // Cleanup results
+          hideResults();
+          disposeScene();
+          resetStateVariables();
+        }
+
+      })
+      .catch(error => { // <-- Catch and log the actual error object
+        console.error("Error during image loading process:", error);
+        alert("无法加载图片。请确保文件是有效的图片格式。详细信息请查看控制台。");
+        // Cleanup results
+        hideResults();
+        disposeScene();
+        resetStateVariables();
+      });
+  }
+
+  // --- Helper function to hide all result sections ---
+  function hideResults () {
+    uploadedImage.style.display = 'none';
+    uploadedImage.src = '#'; // Reset image src
+
+    // Hide palette results (drawPalette([], ...) handles canvas and buttons)
+    drawPalette([], paletteCanvas, 0);
+    const palettePlaceholder = document.getElementById('palettePlaceholder');
+    if (palettePlaceholder) palettePlaceholder.style.display = 'block';
+
+
+    // Hide analysis section
+    colorAnalysisSection.style.display = 'none';
+    // Stat paragraphs could be cleared here if desired:
+    // hsvStatsParagraph.textContent = ''; labStatsParagraph.textContent = '';
+
+    // Hide sphere section
+    colorSphereSection.style.display = 'none';
+    const spherePlaceholder = document.getElementById('spherePlaceholder');
+    if (spherePlaceholder) spherePlaceholder.style.display = 'block';
+    const sphereExportButtonsDiv = document.querySelector('.color-sphere-section .export-buttons');
+    if (sphereExportButtonsDiv) sphereExportButtonsDiv.style.display = 'none'; // Ensure sphere buttons are hidden
+  }
+
+  // --- Helper function to reset state variables ---
+  function resetStateVariables () {
+    currentAnalyzedPalette = null;
+    currentSphereRenderer = null;
+    currentScene = null;
+    currentCamera = null;
+    currentImageFilename = 'image';
+    currentImageSize = { width: 0, height: 0 };
+    currentPixelData = null; // Clear pixel data
+  }
+
+
+  // --- Add Input Event Listeners ---
+
+  // 1. File Input Listener
+  imageInput.addEventListener('change', function (event) {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const selectedFile = files[0];
+      processImageFile(selectedFile, selectedFile.name);
+    } else {
+      console.log("File selection cancelled.");
+      // Cleanup results and state
+      hideResults();
+      disposeScene();
+      resetStateVariables();
+    }
+    // Optional: event.target.value = null; // Clear the input value if needed after processing or cancelling
+  });
+
+
+  // 2. Drag and Drop Listeners
+  uploadArea.addEventListener('dragover', (event) => {
+    event.preventDefault(); // Prevent default behavior (preventing file from being opened)
+    // Check if the drag data contains files AND at least one is an image
+    const isFile = event.dataTransfer.items && event.dataTransfer.items.length > 0 && event.dataTransfer.items[0].kind === 'file';
+    const isImage = isFile && event.dataTransfer.items[0].type.startsWith('image/');
+
+    if (isImage) {
+      uploadArea.classList.add('dragover'); // Add visual feedback
+      event.dataTransfer.dropEffect = 'copy'; // Show "copy" cursor
+    } else {
+      // Not a valid image file drag - indicate it's not droppable
+      event.dataTransfer.dropEffect = 'none';
+    }
+  });
+
+  uploadArea.addEventListener('dragleave', (event) => {
+    event.preventDefault();
+    uploadArea.classList.remove('dragover'); // Remove visual feedback
+  });
+
+  uploadArea.addEventListener('drop', (event) => {
+    event.preventDefault(); // Prevent default behavior (preventing file from being opened)
+    uploadArea.classList.remove('dragover'); // Remove visual feedback
+
+    if (event.dataTransfer.items) {
+      // Use DataTransferItemList interface for accessing the file(s)
+      // Find the first image file item
+      for (let i = 0; i < event.dataTransfer.items.length; i++) {
+        const item = event.dataTransfer.items[i];
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          const file = item.getAsFile(); // Get the File object
+          if (file) {
+            console.log(`Dropped item is an image file: ${file.type}`);
+            processImageFile(file, file.name); // Process the dropped file
+            return; // Stop checking other items
+          }
+        }
+      }
+      // If loop finishes without finding an image file
+      console.warn("Dropped data does not contain an image file.");
+      alert("请拖拽一个图片文件。");
+
+    } // Fallback for browsers that might not fully support DataTransferItemList
+    else if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+      const file = event.dataTransfer.files[0]; // Get the first file
+      if (file.type.startsWith('image/')) {
+        console.log(`Dropped fallback file is an image: ${file.type}`);
+        processImageFile(file, file.name);
+      } else {
+        console.warn("Dropped fallback file is not an image.");
+        alert("请拖拽一个图片文件。");
+      }
+    } else {
+      console.warn("No files found in drop data.");
+      alert("请拖拽一个图片文件。");
+    }
+  });
+
+
+  // 3. Paste Listener (on the whole document)
+  document.addEventListener('paste', (event) => {
+    console.log("Paste event fired.");
+    // Check if clipboard data contains items
+    if (event.clipboardData && event.clipboardData.items) {
+      // Iterate through clipboard items
+      for (let i = 0; i < event.clipboardData.items.length; i++) {
+        const item = event.clipboardData.items[i];
+        // Check if the item is a file (kind) and is an image (type)
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          event.preventDefault(); // Prevent default paste behavior (e.g., pasting as text)
+          const file = item.getAsFile(); // Get the File object (or Blob)
+          if (file) {
+            console.log(`Pasted item is an image file: ${file.type} (${file.size} bytes)`);
+            // Use a generic filename like "pasted_image.png"
+            // getAsFile() might return null in some cases depending on browser/content
+            // Ensure file is not null before processing
+            if (file) {
+              processImageFile(file, `pasted_image.${file.type.split('/')[1] || 'png'}`); // Process the pasted image
+              return; // Stop checking other items
+            }
+          }
+        }
+      }
+    }
+    // If no image file found in clipboard, let default paste happen (e.g., pasting text)
+    console.log("No image file found in paste data.");
+  });
+
+
+  // --- Export Button Event Listeners (Remain the same) ---
+  // These access the global state variables (currentAnalyzedPalette, currentSphereRenderer etc.)
 
   savePaletteImageBtn.addEventListener('click', () => {
     console.log("Save Palette Image button clicked.");
-    // exportPaletteAsImage returns Data URL, then use fileSaver to download
     const dataUrl = exportPaletteAsImage(paletteCanvas);
     if (dataUrl) {
       saveDataUrlAsFile(dataUrl, `${currentImageFilename}_palette.png`);
@@ -93,20 +426,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   savePaletteDataBtn.addEventListener('click', () => {
     console.log("Save Palette Data button clicked.");
-    // Save analyzed palette data as JSON
-    if (currentAnalyzedPalette && currentImageSize.width > 0 && currentImageSize.height > 0) { // Check if data and image size are available
-      // Format data nicely for JSON output (remove lab, add hex and percentage)
+    // Check if data and image size are available
+    if (currentAnalyzedPalette && currentImageSize.width > 0 && currentImageSize.height > 0) {
       const dataToSave = currentAnalyzedPalette.map(colorInfo => ({
         rgb: colorInfo.rgb,
-        hex: rgbToHex([colorInfo.rgb.r, colorInfo.rgb.g, colorInfo.rgb.b]), // Add hex for convenience
-        // Calculate percentage based on total pixels from stored image size
+        hex: rgbToHex([colorInfo.rgb.r, colorInfo.rgb.g, colorInfo.rgb.b]),
         pixelPercentage: ((colorInfo.count / (currentImageSize.width * currentImageSize.height)) * 100).toFixed(1) + '%',
         isBackground: colorInfo.isBackground,
         isFeature: colorInfo.isFeature
-        // Lab data is not included in JSON export for simplicity, but could be added
       }));
-
-      const jsonString = JSON.stringify(dataToSave, null, 2); // Use 2 spaces for indentation
+      const jsonString = JSON.stringify(dataToSave, null, 2);
       saveTextFile(`${currentImageFilename}_palette.json`, jsonString, 'application/json');
     } else {
       console.warn("No analyzed palette data available or image size is zero for export.");
@@ -116,11 +445,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   saveSphereImageBtn.addEventListener('click', () => {
     console.log("Save Sphere Image button clicked.");
-    // exportSphereAsImage returns Data URL, then use fileSaver to download
     // Need the renderer, scene, and camera instances
-    if (currentSphereRenderer && currentScene && currentCamera) { // Check if all required 3D objects exist
-      // exportSphereAsImage will render one frame and return the Data URL
-      const dataUrl = exportSphereAsImage(currentSphereRenderer, currentScene, currentCamera); // <-- Pass scene and camera
+    if (currentSphereRenderer && currentScene && currentCamera) {
+      const dataUrl = exportSphereAsImage(currentSphereRenderer, currentScene, currentCamera);
       if (dataUrl) {
         saveDataUrlAsFile(dataUrl, `${currentImageFilename}_sphere.png`);
       }
@@ -130,231 +457,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-
-  // --- Add 'change' event listener to the file input ---
-  imageInput.addEventListener('change', function (event) {
-    const files = event.target.files;
-
-    // --- Cleanup previous results when a new file is selected ---
-    console.log("New file selected. Starting cleanup...");
-    uploadedImage.style.display = 'none';
-    uploadedImage.src = '#'; // Reset image src
-
-    // Clear and hide palette results
-    drawPalette([], paletteCanvas, 0); // Use drawPalette with empty array to clear/hide canvas and buttons
-    // placeholder is shown by drawPalette
-
-    // Hide analysis section
-    colorAnalysisSection.style.display = 'none';
-    // Stat paragraphs are reset by calculateColorStats if it fails, no need to clear here
-
-    // Hide sphere section
-    colorSphereSection.style.display = 'none';
-    spherePlaceholder.style.display = 'block'; // Show sphere placeholder
-    sphereExportButtonsDiv.style.display = 'none'; // Ensure sphere buttons are hidden
-
-    // Dispose previous 3D scene and clear all related references
-    disposeScene();
-    currentSphereRenderer = null; // Clear the reference AFTER disposing
-    currentScene = null; // Clear scene reference
-    currentCamera = null; // Clear camera reference
-    console.log("Disposed previous scene and cleared references.");
-
-    // Clear previous palette data reference and image info
-    currentAnalyzedPalette = null;
-    currentImageSize = { width: 0, height: 0 }; // Reset image size
-    currentImageFilename = 'image'; // Reset filename
-
-
-    if (files && files.length > 0) {
-      const selectedFile = files[0];
-      console.log(`File selected: ${selectedFile.name} (${selectedFile.type}, ${selectedFile.size} bytes)`);
-
-      // Set the base filename for exports (remove extension)
-      // Use 'image' as fallback if filename has no extension
-      currentImageFilename = selectedFile.name.split('.').slice(0, -1).join('.') || 'image';
-
-      // --- Load and display the image ---
-      loadImageAndDisplay(selectedFile, uploadedImage)
-        .then(loadedImgElement => {
-          console.log("Image loading and display successful. Now getting pixel data...");
-
-          // Store image size for percentage calculation in export
-          currentImageSize = { width: loadedImgElement.naturalWidth, height: loadedImgElement.naturalHeight };
-
-          // --- Step 2: Get Pixel Data ---
-          const pixelData = getCanvasPixelData(loadedImgElement, hiddenCanvas);
-          const width = loadedImgElement.naturalWidth;
-          const height = loadedImgElement.naturalHeight;
-          const totalPixels = width * height;
-
-          if (pixelData && totalPixels > 0) {
-            console.log(`Successfully retrieved pixel data: ${pixelData.length} bytes for ${width}x${height} image.`);
-
-            // --- Step 3: Extract, Analyze, and Render Palette ---
-            console.log("Extracting and analyzing palette...");
-            // Hardcoded parameters for now (TODO: add UI inputs)
-            const maxColors = 12;
-            const colorThreshold = 20; // Delta E threshold for merging (e.g., 20 is a noticeable difference)
-
-            const rawPalette = extractPaletteMedianCut(pixelData, maxColors);
-            console.log(`Raw palette extracted (${rawPalette.length} colors).`);
-
-            const analyzedPalette = analyzePalette(rawPalette, colorThreshold, totalPixels);
-            console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
-
-            // Store the analyzed palette data for export
-            currentAnalyzedPalette = analyzedPalette;
-
-            // Sort for display (e.g., by luminance)
-            analyzedPalette.sort((a, b) => a.lab[0] - b.lab[0]);
-
-            // Draw palette to canvas (This function also handles showing palette buttons)
-            drawPalette(analyzedPalette, paletteCanvas, totalPixels);
-            console.log("Palette rendered to canvas.");
-
-
-            // --- Step 4: Calculate Stats and Draw 2D Visualizations ---
-            console.log("Calculating color stats and drawing 2D visualizations...");
-
-            const colorStats = calculateColorStats(pixelData, width, height);
-
-            if (colorStats) {
-              // Display stats summary
-              hsvStatsParagraph.textContent =
-                `平均 HSV: H=${colorStats.hsv.avg[0].toFixed(3)}, S=${colorStats.hsv.avg[1].toFixed(3)}, V=${colorStats.hsv.avg[2].toFixed(3)} ` +
-                `| 标准差: H=${colorStats.hsv.stdDev[0].toFixed(3)}, S=${colorStats.hsv.stdDev[1].toFixed(3)}, V=${colorStats.hsv.stdDev[2].toFixed(3)}`;
-
-              labStatsParagraph.textContent =
-                `平均 Lab: L*=${colorStats.lab.avg[0].toFixed(3)}, a*=${colorStats.lab.avg[1].toFixed(3)}, b*=${colorStats.lab.avg[2].toFixed(3)} ` +
-                `| 标准差: L*=${colorStats.lab.stdDev[0].toFixed(3)}, a*=${colorStats.lab.stdDev[1].toFixed(3)}, b*=${colorStats.lab.stdDev[2].toFixed(3)}`;
-
-              // Draw Histograms
-              const binCount = 60; // Number of bars in histogram
-              drawHistogram(histHCanvas, colorStats.rawValues.h, "Hue", 0, 1, binCount);
-              drawHistogram(histSCanvas, colorStats.rawValues.s, "Saturation", 0, 1, binCount);
-              drawHistogram(histVCanvas, colorStats.rawValues.v, "Value", 0, 1, binCount);
-              drawHistogram(histLCanvas, colorStats.rawValues.l, "L*", 0, 100, binCount);
-              // Use a reasonable range for a* and b* histograms
-              drawHistogram(histACanvas, colorStats.rawValues.a, "a*", -100, 100, binCount);
-              drawHistogram(histBCanvas, colorStats.rawValues.b, "b*", -100, 100, binCount);
-
-              // Draw Lab a*b* Scatter Plot
-              // Sample factor 100 means process every 100th pixel
-              drawLabScatterPlotRevised(labScatterCanvas, pixelData, width, height, 100);
-
-
-              // Show the analysis section
-              colorAnalysisSection.style.display = 'block';
-
-              console.log("Color stats calculated and 2D visualizations rendered.");
-
-              // --- Step 5: Setup and Render 3D Sphere ---
-              console.log("Preparing to setup 3D color sphere...");
-
-              // Show the container BEFORE calling setupSphereScene
-              spherePlaceholder.style.display = 'none';
-              colorSphereSection.style.display = 'block'; // This will ensure container has dimensions
-
-              // *** FIX: Use requestAnimationFrame to wait for layout calculation before 3D setup ***
-              requestAnimationFrame(() => {
-                console.log("Attempting to setup 3D color sphere after next frame...");
-
-                // Re-get container element just to be safe after display change, although not strictly needed
-                const sphereContainer = document.getElementById('sphereContainer');
-                // pixelData, width, height are still accessible via closure
-
-                // Call the 3D setup function and store the returned object
-                // Sample factor 200 means process every 200th pixel for 3D points
-                const sphereSceneInfo = setupSphereScene(sphereContainer, pixelData, width, height, 200);
-
-                if (sphereSceneInfo) { // Check if setup was successful (returned non-null)
-                  console.log("3D scene setup successful.");
-                  // Store the references returned by setupSphereScene
-                  currentSphereRenderer = sphereSceneInfo.renderer;
-                  currentScene = sphereSceneInfo.scene;
-                  currentCamera = sphereSceneInfo.camera;
-
-                  // 3D export buttons are shown inside setupSphereScene on success
-
-                } else {
-                  console.error("Failed to setup 3D scene.");
-                  // Hide sphere section and buttons if setup failed
-                  colorSphereSection.style.display = 'none'; // Hide the section again
-                  spherePlaceholder.style.display = 'block'; // Show placeholder again
-                  // Get button div again as section might have been hidden
-                  const sphereExportButtonsDiv = document.querySelector('.color-sphere-section .export-buttons');
-                  if (sphereExportButtonsDiv) sphereExportButtonsDiv.style.display = 'none'; // Ensure buttons are hidden
-                }
-                console.log("3D color sphere setup sequence complete."); // Log after requestAnimationFrame callback
-              }); // End of requestAnimationFrame callback
-
-
-            } else {
-              console.error("Failed to calculate color stats.");
-              // Hide analysis and sphere sections if stats fail
-              colorAnalysisSection.style.display = 'none';
-              colorSphereSection.style.display = 'none';
-              spherePlaceholder.style.display = 'block';
-              sphereExportButtonsDiv.style.display = 'none'; // Ensure buttons are hidden
-            }
-
-            console.log("\nProcessing complete for image.");
-
-
-          } else {
-            console.error("Failed to get pixel data from canvas or image size is zero.");
-            alert("无法处理图片像素数据。");
-            // Cleanup previous results
-            drawPalette([], paletteCanvas, 0); // Clears palette and hides its buttons
-            document.getElementById('palettePlaceholder').style.display = 'block';
-            colorAnalysisSection.style.display = 'none';
-            colorSphereSection.style.display = 'none';
-            spherePlaceholder.style.display = 'block';
-            sphereExportButtonsDiv.style.display = 'none'; // Ensure buttons are hidden
-          }
-
-        })
-        .catch(error => {
-          console.error("Error during image loading process:", error);
-          alert("无法加载图片。请确保文件是有效的图片格式。");
-          // Cleanup previous results
-          drawPalette([], paletteCanvas, 0); // Clears palette and hides its buttons
-          document.getElementById('palettePlaceholder').style.display = 'block';
-          colorAnalysisSection.style.display = 'none';
-          colorSphereSection.style.display = 'none';
-          spherePlaceholder.style.display = 'block';
-          sphereExportButtonsDiv.style.display = 'none'; // Ensure buttons are hidden
-        });
-
-    } else {
-      // File selection cancelled cleanup
-      console.log("File selection cancelled.");
-      uploadedImage.style.display = 'none';
-      uploadedImage.src = '#';
-      // Hide or clear all results sections and buttons
-      drawPalette([], paletteCanvas, 0); // Clears palette and hides its buttons
-      document.getElementById('palettePlaceholder').style.display = 'block';
-      colorAnalysisSection.style.display = 'none';
-      colorSphereSection.style.display = 'none';
-      spherePlaceholder.style.display = 'block';
-      sphereExportButtonsDiv.style.display = 'none'; // Ensure buttons are hidden
-
-
-      // Dispose scene and clear references on cancel
-      disposeScene();
-      currentSphereRenderer = null;
-      currentScene = null;
-      currentCamera = null;
-
-      // Clear palette data and image info references
-      currentAnalyzedPalette = null;
-      currentImageSize = { width: 0, height: 0 };
-      currentImageFilename = 'image';
-
-    }
-    // Optional: event.target.value = null; // Clear the input value if needed
-  });
 
   console.log("main.js script finished execution. Waiting for user interaction.");
 });
