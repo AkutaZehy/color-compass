@@ -27,6 +27,29 @@ let currentPixelData = null; // Store pixel data to allow re-generating palette/
 document.addEventListener('DOMContentLoaded', () => {
   console.log("DOM fully loaded and parsed.");
 
+  // Dynamic version info from GitHub
+  fetch('https://api.github.com/repos/AkutaZehy/color-compass/commits/main')
+    .then(response => response.ok ? response.json() : Promise.reject('API error'))
+    .then(data => {
+      const footer = document.querySelector('footer');
+      if (footer) {
+        const versionSpan = document.createElement('span');
+        versionSpan.className = 'git-version';
+        versionSpan.textContent = `Git版本: ${data.sha.substring(0, 7)}`;
+        footer.appendChild(versionSpan);
+      }
+    })
+    .catch(e => console.log('版本信息获取失败:', e));
+
+  // --- Palette Parameters with Default Values ---
+  const paletteParams = {
+    maxColors: 10,
+    minColors: 5,
+    featureThreshold: 30,
+    maxSplit: 50,
+    mergeIntensity: 0.1
+  };
+
   // --- Get HTML Elements ---
   const imageInput = document.getElementById('imageInput'); // File input
   const uploadArea = document.getElementById('uploadArea'); // Drag and drop area
