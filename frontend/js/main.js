@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     maxColors: 10,
     minColors: 5,
     featureThreshold: 30,
+    backgroundThreshold: 0.3,
     maxSplit: 50,
     mergeIntensity: 0.1
   };
@@ -140,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         paletteParams.featureThreshold,
         totalPixels,
         paletteParams.mergeIntensity,
+        paletteParams.backgroundThreshold,
         paletteParams.maxColors,
         paletteParams.minColors
       );
@@ -271,6 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
             paletteParams.featureThreshold,
             totalPixels,
             paletteParams.mergeIntensity,
+            paletteParams.backgroundThreshold,
             paletteParams.maxColors,
             paletteParams.minColors
           );

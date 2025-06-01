@@ -83,7 +83,7 @@
             <h2>
               提取的调色板<span class="tooltip"
                 >?<span class="tooltiptext"
-                  >基于 Median-Cut + K-Means 实现的快速色板算法，由于
+                  >基于 Median Cut + K-means 实现的快速色板算法，由于
                   K-means
                   结果受初始化方法影响，不同尝试间可能生成的色板间略有差异。</span
                 ></span
@@ -140,7 +140,7 @@
                         <span class="tooltip"
                           >?<span class="tooltiptext"
                             >控制识别特征颜色的阈值。基于 LAB
-                            距离，较高的值会使算法标记出更多的特色颜色。</span
+                            距离，较低的值会使算法标记出更多的特色颜色。</span
                           ></span
                         >
                       </label>
@@ -178,9 +178,9 @@
                         >合并烈度:
                         <span class="tooltip"
                           >?<span class="tooltiptext"
-                            >控制颜色合并的强度。基于 LAB
-                            距离，在保证minColors的前提下，保证尽可能多的簇间的
-                            LAB 距离高于该值。</span
+                            >控制颜色合并的强度。基于 LAB 距离，在保证
+                            minColors 的前提下，保证尽可能多的簇间的 LAB
+                            距离高于该值。</span
                           ></span
                         >
                       </label>
