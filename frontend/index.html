@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0"
     />
-    <title>Color Explorer - Step 1</title>
+    <title>Color Explorer - Step 2</title>
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
@@ -14,20 +14,20 @@
 
     <div class="input-section">
       <label for="imageInput">选择一张图片文件 (.jpg, .png, etc.):</label>
-      <!-- accept="image/*" 会在文件选择对话框中过滤文件类型 -->
       <input type="file" id="imageInput" accept="image/*" />
     </div>
 
     <div class="image-display">
-      <!-- 这个 img 标签用来显示用户上传的图片 -->
-      <!-- src="#" 是一个占位符，会被 JavaScript 替换 -->
-      <!-- alt 是图片无法显示时的文本描述 -->
       <img id="uploadedImage" src="#" alt="Uploaded Image" />
     </div>
 
-    <!-- 先引入 imageHandler，因为它包含 main.js 会调用的函数 -->
+    <!-- 隐藏的 Canvas 用于获取像素数据 -->
+    <canvas id="hiddenCanvas" style="display: none"></canvas>
+
+    <!-- 引入 imageHandler, colorUtils -->
     <script src="js/imageHandler.js"></script>
-    <!-- 最后引入 main.js，确保 DOM 已经加载 -->
+    <script src="js/colorUtils.js"></script>
+    <!-- 最后引入 main.js -->
     <script src="js/main.js"></script>
   </body>
 </html>
