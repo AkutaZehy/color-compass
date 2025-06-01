@@ -153,12 +153,13 @@ export function drawLabScatterPlotRevised (canvas, pixelData, imageWidth, imageH
   const scaleY = canvasHeight / plotRangeB;
 
   // Choose point rendering method: simple rectangle or arc
-  const pointSize = 1.5; // Slightly larger points for better visibility
-  const pointAlpha = 0.3; // Transparency for dense areas
+  const pointSize = 1.5; // Increased point size for better visibility
+  const pointAlpha = 0.6; // Increased opacity for better clarity
+  const highlightAlpha = 0.9; // Alpha for highlighted points
 
   ctx.globalAlpha = pointAlpha; // Set global alpha
 
-  // Process pixels with sampling
+  // Process pixels with sampling (reduced sample factor for more points)
   const totalPixels = imageWidth * imageHeight;
   for (let i = 0; i < totalPixels; i += pixelSampleFactor) {
     // Calculate index in pixelData array
@@ -192,10 +193,16 @@ export function drawLabScatterPlotRevised (canvas, pixelData, imageWidth, imageH
     // Set point color using the pixel's original color
     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
 
-    // Draw the point as a small rectangle
+    // Draw the point as a small rectangle with highlight effect
     // Ensure point is within canvas bounds before drawing
     if (x >= 0 && x < canvasWidth && y >= 0 && y < canvasHeight) {
+      // Draw main point
       ctx.fillRect(x - pointSize / 2, y - pointSize / 2, pointSize, pointSize);
+
+      // Draw highlight effect
+      ctx.globalAlpha = highlightAlpha;
+      ctx.fillRect(x - 1, y - 1, 2, 2);
+      ctx.globalAlpha = pointAlpha;
     }
     // }
   }

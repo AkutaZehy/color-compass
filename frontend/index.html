@@ -77,7 +77,8 @@
       <!-- Hidden Canvas used to get pixel data -->
       <canvas id="hiddenCanvas" style="display: none"></canvas>
 
-      <div class="palette-section">
+      <div class="dashboard-container">
+        <div class="palette-section">
         <h2>提取的调色板</h2>
         <canvas id="paletteCanvas"></canvas>
         <p id="palettePlaceholder">请选择图片以生成调色板。</p>
@@ -88,8 +89,9 @@
         </div>
       </div>
 
-      <!-- Color Analysis Section -->
-      <div class="color-analysis-section">
+      <div class="analysis-dashboard">
+        <!-- Color Analysis Section -->
+        <div class="color-analysis-section">
         <h2>色彩倾向分析</h2>
 
         <div class="stats-summary">
@@ -127,9 +129,11 @@
             </div>
           </div>
 
-          <div class="chart-container large-chart">
-            <canvas id="labScatter"></canvas>
-            <p>Lab a*b* 分布</p>
+          <div class="lab-scatter-section">
+            <div class="chart-container large-chart">
+              <canvas id="labScatter" width="1200" height="600"></canvas>
+              <p>Lab a*b* 分布</p>
+            </div>
           </div>
           <!-- No explicit export button for 2D charts for MVP, user can screenshot -->
         </div>
@@ -146,6 +150,7 @@
           <!-- Export button for 3D sphere -->
           <button id="saveSphereImageBtn">保存 3D 色球图片</button>
         </div>
+      </div>
       </div>
     </div>
     <!-- End of content-wrapper -->
