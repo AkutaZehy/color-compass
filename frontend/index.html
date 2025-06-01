@@ -9,16 +9,19 @@
     <title>Color Explorer for Artists</title>
     <link rel="stylesheet" href="css/style.css" />
     <style>
+      /* Remove default margin/padding from body to avoid scrollbars caused by large canvas */
       body {
         margin: 0;
         padding: 0;
       }
+      /* Add padding back to a content wrapper div */
       .content-wrapper {
-        padding: 20px;
+        padding: 20px; /* Consistent padding around main content */
       }
     </style>
 
-    <!-- Add Import Map here -->
+    <!-- Import Map to resolve bare module specifiers like "three" -->
+    <!-- MUST be before any script type="module" that imports these -->
     <script type="importmap">
       {
         "imports": {
@@ -29,7 +32,7 @@
     </script>
 
     <!-- Import Three.js and OrbitControls as ES Modules -->
-    <!-- These now rely on the importmap above to resolve their internal 'three' and 'three/addons/' imports -->
+    <!-- These rely on the importmap above to resolve their internal 'three' and 'three/addons/' imports -->
     <script type="module" src="lib/three/build/three.module.js"></script>
     <script
       type="module"
@@ -47,39 +50,49 @@
     <script type="module" src="js/colorStats.js"></script>
     <script type="module" src="js/visualization2D.js"></script>
     <script type="module" src="js/sphereRenderer3D.js"></script>
+    <script type="module" src="js/fileSaver.js"></script>
     <script type="module" src="js/main.js"></script>
   </head>
   <body>
-    <!-- ... rest of body ... -->
     <div class="content-wrapper">
-      <!-- ... H1, input, image-display, hiddenCanvas ... -->
       <h1>Color Explorer for Artists</h1>
+
       <div class="input-section">
         <label for="imageInput"
           >选择一张图片文件 (.jpg, .png, etc.):</label
         >
         <input type="file" id="imageInput" accept="image/*" />
+        <!-- TODO: Add input for max palette colors, color threshold, 3D sampling, grid lines -->
       </div>
+
       <div class="image-display">
         <img id="uploadedImage" src="#" alt="Uploaded Image" />
       </div>
+
+      <!-- Hidden Canvas used to get pixel data -->
       <canvas id="hiddenCanvas" style="display: none"></canvas>
 
-      <!-- ... palette section ... -->
       <div class="palette-section">
         <h2>提取的调色板</h2>
         <canvas id="paletteCanvas"></canvas>
         <p id="palettePlaceholder">请选择图片以生成调色板。</p>
+        <div class="export-buttons">
+          <!-- Export buttons for palette -->
+          <button id="savePaletteImageBtn">保存调色板图片</button>
+          <button id="savePaletteDataBtn">保存调色板数据</button>
+        </div>
       </div>
 
-      <!-- ... color analysis section ... -->
+      <!-- Color Analysis Section -->
       <div class="color-analysis-section">
         <h2>色彩倾向分析</h2>
+
         <div class="stats-summary">
           <h3>统计摘要:</h3>
           <p id="hsvStats"></p>
           <p id="labStats"></p>
         </div>
+
         <div class="histograms-2d-viz">
           <h3>颜色分布图:</h3>
           <div class="histograms-container">
@@ -108,21 +121,31 @@
               <p>黄-蓝 (b*)</p>
             </div>
           </div>
+
           <div class="chart-container large-chart">
             <canvas id="labScatter"></canvas>
             <p>Lab a*b* 分布</p>
           </div>
+          <!-- No explicit export button for 2D charts for MVP, user can screenshot -->
         </div>
       </div>
 
-      <!-- ... 3D sphere section ... -->
+      <!-- 3D Color Sphere Section -->
       <div class="color-sphere-section">
         <h2>Lab 色彩空间 (3D)</h2>
-        <div id="sphereContainer"></div>
+        <div id="sphereContainer">
+          <!-- Three.js will render its canvas here -->
+        </div>
         <p id="spherePlaceholder">请选择图片以生成 3D 色球。</p>
+        <div class="export-buttons">
+          <!-- Export button for 3D sphere -->
+          <button id="saveSphereImageBtn">保存 3D 色球图片</button>
+        </div>
       </div>
     </div>
     <!-- End of content-wrapper -->
-    <!-- No script tags needed here for type="module" -->
+
+    <!-- Note: Script tags with type="module" do not need to be at the end of body. -->
+    <!-- They have 'defer' behavior by default. -->
   </body>
 </html>

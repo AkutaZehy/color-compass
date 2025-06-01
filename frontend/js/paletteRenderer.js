@@ -9,15 +9,24 @@ import { rgbToHex } from './colorUtils.js'; // Import the function
  */
 export function drawPalette (palette, canvasElement, totalPixels) { // Export the function
   const placeholder = document.getElementById('palettePlaceholder');
+  const paletteExportButtons = canvasElement.parentElement ? canvasElement.parentElement.querySelector('.export-buttons') : null;
+
 
   if (!palette || palette.length === 0 || !canvasElement) {
     canvasElement.style.display = 'none'; // Hide canvas if no palette
     if (placeholder) placeholder.style.display = 'block'; // Show placeholder
+
+    // Hide export buttons if palette is cleared or empty
+    if (paletteExportButtons) {
+      console.log("Hiding palette export buttons (palette is empty or invalid).");
+      paletteExportButtons.style.display = 'none';
+    }
     return;
   }
 
   if (placeholder) placeholder.style.display = 'none'; // Hide placeholder
   canvasElement.style.display = 'block'; // Show the canvas
+
 
   const ctx = canvasElement.getContext('2d');
 
@@ -39,7 +48,12 @@ export function drawPalette (palette, canvasElement, totalPixels) { // Export th
   // Adjust canvas size - keep it within reasonable bounds
   // Using clientWidth of the parent container for max width
   const parentWidth = canvasElement.parentElement ? canvasElement.parentElement.clientWidth : requiredWidth;
-  canvasElement.width = Math.max(requiredWidth, 300); // Minimum width
+  // Set canvas width to fit required content, but not exceed parent width
+  canvasElement.width = Math.max(requiredWidth, Math.min(parentWidth, requiredWidth));
+  // Ensure a minimum width if requiredWidth is very small, but less than parentWidth
+  canvasElement.width = Math.max(canvasElement.width, Math.min(300, parentWidth));
+
+
   canvasElement.height = requiredHeight;
 
 
@@ -52,7 +66,7 @@ export function drawPalette (palette, canvasElement, totalPixels) { // Export th
   // Draw each color swatch and its info
   palette.forEach(color => {
     // Draw the color swatch rectangle
-    // Pass RGB as an array to rgbToHex - FIX from previous step
+    // Pass RGB as an array to rgbToHex
     ctx.fillStyle = rgbToHex([color.rgb.r, color.rgb.g, color.rgb.b]);
     ctx.fillRect(currentX, padding, fixedSwatchWidth, swatchHeight);
 
@@ -62,7 +76,7 @@ export function drawPalette (palette, canvasElement, totalPixels) { // Export th
     ctx.textAlign = 'center'; // Center text below the swatch
     ctx.textBaseline = 'top'; // Align text to the top of the baseline
 
-    // Calculate hex string correctly - FIX from previous step
+    // Calculate hex string
     const hex = rgbToHex([color.rgb.r, color.rgb.g, color.rgb.b]);
 
     ctx.fillText(hex, currentX + fixedSwatchWidth / 2, padding + swatchHeight + textGap);
@@ -84,4 +98,34 @@ export function drawPalette (palette, canvasElement, totalPixels) { // Export th
     // Move to the next position
     currentX += fixedSwatchWidth + swatchGap;
   });
+
+  // Show palette export buttons after drawing
+  if (paletteExportButtons) {
+    console.log("Showing palette export buttons.");
+    paletteExportButtons.style.display = 'block';
+  }
+}
+
+/**
+ * Exports the drawn palette canvas as a PNG image.
+ * @param {HTMLCanvasElement} canvasElement - The canvas element containing the drawn palette.
+ * @param {string} filename - The desired name for the downloaded file (e.g., "palette.png").
+ * @returns {string|null} Data URL of the image, or null on error.
+ */
+export function exportPaletteAsImage (canvasElement, filename = 'color_palette.png') { // Export the function
+  if (!canvasElement || canvasElement.width === 0 || canvasElement.height === 0) {
+    console.error("Cannot export empty or non-existent palette canvas.");
+    alert("调色板未生成，无法导出图片。");
+    return null;
+  }
+
+  try {
+    // Get image data as Data URL (PNG format by default)
+    const dataUrl = canvasElement.toDataURL('image/png');
+    return dataUrl; // Return Data URL so main.js can use fileSaver
+  } catch (e) {
+    console.error("Error getting data URL from palette canvas:", e);
+    alert("导出调色板图片失败。");
+    return null;
+  }
 }
