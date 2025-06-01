@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     maxColors: 10,
     minColors: 5,
     featureThreshold: 30,
-    backgroundThreshold: 0.3,
+    backgroundThreshold: 10,
     maxSplit: 50,
     mergeIntensity: 0.1
   };

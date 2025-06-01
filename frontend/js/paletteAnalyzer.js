@@ -207,9 +207,9 @@ function detectBackground (palette, threshold, totalPixels) {
       region.colors.reduce((sum, c) => sum + c.rgb.g, 0) / region.colors.length,
       region.colors.reduce((sum, c) => sum + c.rgb.b, 0) / region.colors.length
     );
-    if (avgHsv[1] < 0.15) {
-      region.colors.forEach(c => c.isBackground = true);
-    }
+    // if (avgHsv[1] < 0.15) {
+    region.colors.forEach(c => c.isBackground = true);
+    // }
   }
 }
 
