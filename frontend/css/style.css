@@ -223,6 +223,8 @@ h3 {
   width: 100%;
   min-height: 500px;
   margin: 0 auto;
+  height: auto;
+  aspect-ratio: 1 / 1;
 }
 
 @media (max-width: 768px) {
@@ -233,10 +235,11 @@ h3 {
   }
 
   .large-chart canvas {
-    width: 100%;
+    height: 100px;
+    width: auto;
     max-width: 100%;
-    height: auto;
-    aspect-ratio: 2/1;
+    aspect-ratio: 1 / 1;
+    /* 设置宽高比为1:1，确保是正方形 */
   }
 }
 
