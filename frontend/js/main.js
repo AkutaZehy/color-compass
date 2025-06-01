@@ -1,14 +1,25 @@
 // frontend/js/main.js
 
+// Import functions/classes from other modules
+import { loadImageAndDisplay, getCanvasPixelData } from './imagehandler.js';
+import { extractPaletteMedianCut } from './medianCut.js';
+import { analyzePalette } from './paletteAnalyzer.js';
+import { drawPalette } from './paletteRenderer.js';
+import { calculateColorStats } from './colorStats.js';
+import { drawHistogram, drawLabScatterPlotRevised } from './visualization2D.js';
+import { setupSphereScene, disposeScene } from './sphereRenderer3D.js'; // Import setup and dispose
+
+
 document.addEventListener('DOMContentLoaded', () => {
   console.log("DOM fully loaded and parsed.");
 
-  // 获取 HTML 元素
+  // Get HTML elements
   const imageInput = document.getElementById('imageInput');
   const uploadedImage = document.getElementById('uploadedImage');
   const hiddenCanvas = document.getElementById('hiddenCanvas');
   const paletteCanvas = document.getElementById('paletteCanvas');
-  // --- Step 4: Get new analysis elements ---
+
+  // Step 4: Get analysis elements
   const colorAnalysisSection = document.querySelector('.color-analysis-section'); // The main analysis div
   const hsvStatsParagraph = document.getElementById('hsvStats');
   const labStatsParagraph = document.getElementById('labStats');
@@ -20,24 +31,33 @@ document.addEventListener('DOMContentLoaded', () => {
   const histBCanvas = document.getElementById('histb');
   const labScatterCanvas = document.getElementById('labScatter');
 
+  // Step 5: Get sphere elements
+  const colorSphereSection = document.querySelector('.color-sphere-section');
+  const sphereContainer = document.getElementById('sphereContainer');
+  const spherePlaceholder = document.getElementById('spherePlaceholder');
+
 
   // TODO: Get input for max palette colors, color threshold, etc.
 
-  // 检查必要元素是否存在
+
+  // Check necessary elements exist
   if (!imageInput || !uploadedImage || !hiddenCanvas || !paletteCanvas ||
     !colorAnalysisSection || !hsvStatsParagraph || !labStatsParagraph ||
     !histHCanvas || !histSCanvas || !histVCanvas ||
-    !histLCanvas || !histACanvas || !histBCanvas || !labScatterCanvas) {
+    !histLCanvas || !histACanvas || !histBCanvas || !labScatterCanvas ||
+    !colorSphereSection || !sphereContainer || !spherePlaceholder) {
     console.error("Error: Required HTML elements not found. Check index.html IDs.");
     return;
   }
 
-  // 初始隐藏调色板 Canvas 和分析区域
+  // Initial hide sections
   paletteCanvas.style.display = 'none';
   colorAnalysisSection.style.display = 'none';
+  colorSphereSection.style.display = 'none';
+  spherePlaceholder.style.display = 'block'; // Show sphere placeholder initially
 
 
-  // 为文件输入框添加 'change' 事件监听器
+  // Add 'change' event listener to the file input
   imageInput.addEventListener('change', function (event) {
     const files = event.target.files;
 
@@ -47,12 +67,20 @@ document.addEventListener('DOMContentLoaded', () => {
     drawPalette([], paletteCanvas, 0); // Clear palette display
     document.getElementById('palettePlaceholder').style.display = 'block';
     colorAnalysisSection.style.display = 'none'; // Hide analysis section
+    colorSphereSection.style.display = 'none'; // Hide sphere section
+    spherePlaceholder.style.display = 'block'; // Show sphere placeholder
+
+
+    // Dispose previous 3D scene if it exists
+    disposeScene();
+    console.log("Disposed previous scene.");
 
 
     if (files && files.length > 0) {
       const selectedFile = files[0];
       console.log(`File selected: ${selectedFile.name} (${selectedFile.type}, ${selectedFile.size} bytes)`);
 
+      // Load and display the image
       loadImageAndDisplay(selectedFile, uploadedImage)
         .then(loadedImgElement => {
           console.log("Image loading and display successful. Now getting pixel data...");
@@ -104,56 +132,77 @@ document.addEventListener('DOMContentLoaded', () => {
               drawHistogram(histSCanvas, colorStats.rawValues.s, "Saturation", 0, 1, binCount);
               drawHistogram(histVCanvas, colorStats.rawValues.v, "Value", 0, 1, binCount);
               drawHistogram(histLCanvas, colorStats.rawValues.l, "L*", 0, 100, binCount);
-              // Use a reasonable range for a* and b* histograms
-              drawHistogram(histACanvas, colorStats.rawValues.a, "a*", -100, 100, binCount);
-              drawHistogram(histBCanvas, colorStats.rawValues.b, "b*", -100, 100, binCount);
+              drawHistogram(histACanvas, colorStats.rawValues.a, "a*", -100, 100, binCount); // Use range -100 to 100 for plotting
+              drawHistogram(histBCanvas, colorStats.rawValues.b, "b*", -100, 100, binCount); // Use range -100 to 100 for plotting
 
               // Draw Lab a*b* Scatter Plot
-              drawLabScatterPlotRevised(labScatterCanvas, pixelData, width, height, 100); // Sample every 100th pixel
+              drawLabScatterPlotRevised(labScatterCanvas, pixelData, width, height, 100); // Sample every 100th pixel for scatter plot
+
 
               // Show the analysis section
               colorAnalysisSection.style.display = 'block';
 
               console.log("Color stats calculated and 2D visualizations rendered.");
 
+              // --- Step 5: Setup and Render 3D Sphere ---
+              console.log("Setting up and rendering 3D color sphere...");
+
+              // Show the sphere section
+              spherePlaceholder.style.display = 'none'; // Hide placeholder
+              colorSphereSection.style.display = 'block'; // Show the section
+
+              // Pass necessary data and container
+              setupSphereScene(sphereContainer, pixelData, width, height, 200); // Sample every 200th pixel for 3D
+
+              console.log("3D color sphere rendering initiated. Step 5 complete.");
+
             } else {
               console.error("Failed to calculate color stats.");
-              // Hide analysis section if stats fail
+              // Hide analysis and sphere sections if stats fail
               colorAnalysisSection.style.display = 'none';
+              colorSphereSection.style.display = 'none';
+              spherePlaceholder.style.display = 'block';
             }
 
+            console.log("\nProcessing complete for image.");
 
-            console.log("\nStep 4 complete: Color tendency analyzed and visualized in 2D. Ready for 3D visualization and export.");
 
           } else {
             console.error("Failed to get pixel data from canvas or image size is zero.");
             alert("无法处理图片像素数据。");
-            // Cleanup previous results if any
+            // Cleanup previous results
             drawPalette([], paletteCanvas, 0);
             document.getElementById('palettePlaceholder').style.display = 'block';
-            colorAnalysisSection.style.display = 'none'; // Hide analysis section
+            colorAnalysisSection.style.display = 'none';
+            colorSphereSection.style.display = 'none';
+            spherePlaceholder.style.display = 'block';
           }
-
 
         })
         .catch(error => {
           console.error("Error during image loading process:", error);
           alert("无法加载图片。请确保文件是有效的图片格式。");
-          // Cleanup previous results if any
+          // Cleanup previous results
           drawPalette([], paletteCanvas, 0);
           document.getElementById('palettePlaceholder').style.display = 'block';
-          colorAnalysisSection.style.display = 'none'; // Hide analysis section
+          colorAnalysisSection.style.display = 'none';
+          colorSphereSection.style.display = 'none';
+          spherePlaceholder.style.display = 'block';
         });
 
     } else {
+      // File selection cancelled cleanup
       console.log("File selection cancelled.");
       uploadedImage.style.display = 'none';
       uploadedImage.src = '#';
       // Hide or clear other results
       drawPalette([], paletteCanvas, 0);
       document.getElementById('palettePlaceholder').style.display = 'block';
-      colorAnalysisSection.style.display = 'none'; // Hide analysis section
+      colorAnalysisSection.style.display = 'none';
+      colorSphereSection.style.display = 'none';
+      spherePlaceholder.style.display = 'block';
     }
+    // Optional: event.target.value = null;
   });
 
   console.log("main.js script finished execution. Waiting for user interaction.");

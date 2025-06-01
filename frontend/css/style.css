@@ -3,9 +3,13 @@
 body {
   font-family: sans-serif;
   line-height: 1.6;
-  margin: 20px;
   background-color: #1e1e1e;
   color: #cccccc;
+}
+
+/* Add padding back to a wrapper div if body margin was removed */
+.content-wrapper {
+  padding: 20px;
 }
 
 h1,
@@ -15,7 +19,6 @@ h3 {
   color: #ffffff;
   margin-bottom: 15px;
   margin-top: 25px;
-  /* Add some space above section titles */
 }
 
 .input-section {
@@ -38,15 +41,15 @@ h3 {
 }
 
 .palette-section,
-.color-analysis-section {
-  /* Apply similar styling to analysis section */
+.color-analysis-section,
+.color-sphere-section {
   margin-top: 30px;
   padding: 20px;
   background-color: #2a2a2a;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  /* text-align: center; /* Remove text-align: center here if needed for left-aligned text stats */
 }
+
 
 .stats-summary {
   margin-bottom: 20px;
@@ -58,8 +61,9 @@ h3 {
 .stats-summary p {
   margin: 8px 0;
   text-align: left;
-  /* Align text left in the summary */
   padding-left: 10px;
+  word-break: break-all;
+  /* Prevent long text from overflowing */
 }
 
 
@@ -69,30 +73,23 @@ h3 {
 
 .histograms-container {
   display: grid;
-  /* Use CSS Grid for histogram layout */
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  /* Responsive columns */
   gap: 20px;
-  /* Space between histograms */
   margin-bottom: 30px;
 }
 
 .chart-container {
   text-align: center;
-  /* Center canvas and its description */
 }
 
 .chart-container canvas {
   display: block;
-  /* Canvas takes up full width of its container */
   margin: 0 auto;
-  /* Center block element */
   border: 1px solid #444;
   background-color: #333;
-  /* Set a base height for the histograms, adjust as needed */
   height: 150px;
+  /* Base height for histograms */
   width: 100%;
-  /* Will be managed by grid minmax, but good default */
 }
 
 .chart-container p {
@@ -107,8 +104,9 @@ h3 {
   width: 100%;
 }
 
-/* Initially hide the analysis section until image is loaded */
-.color-analysis-section {
+/* Initially hide sections */
+.color-analysis-section,
+.color-sphere-section {
   display: none;
 }
 
@@ -122,6 +120,31 @@ h3 {
 }
 
 #palettePlaceholder {
+  font-style: italic;
+  color: #888;
+  text-align: center;
+}
+
+#sphereContainer {
+  width: 100%;
+  height: 500px;
+  /* Fixed height for 3D view */
+  margin: 20px auto;
+  border: 1px solid #444;
+  background-color: #333;
+  position: relative;
+  overflow: hidden;
+}
+
+#sphereContainer canvas {
+  display: block;
+  width: 100% !important;
+  /* Override Three.js potential inline style */
+  height: 100% !important;
+  /* Override Three.js potential inline style */
+}
+
+#spherePlaceholder {
   font-style: italic;
   color: #888;
   text-align: center;

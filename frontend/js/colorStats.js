@@ -1,4 +1,5 @@
 // frontend/js/colorStats.js
+import { rgbToHsv, rgbToLab } from './colorUtils.js'; // Import conversion functions
 
 /**
  * Calculates statistical summary (average, std dev) for HSV and Lab color channels
@@ -6,9 +7,9 @@
  * @param {Uint8ClampedArray} pixelData - The pixel data array (R, G, B, A).
  * @param {number} width - Image width.
  * @param {number} height - Image height.
- * @returns {{hsv: {avg: number[], stdDev: number[]}, lab: {avg: number[], stdDev: number[]}}} An object containing stats.
+ * @returns {{hsv: {avg: number[], stdDev: number[]}, lab: {avg: number[], stdDev: number[]}, rawValues: object}|null} An object containing stats and raw values, or null on error.
  */
-function calculateColorStats (pixelData, width, height) {
+export function calculateColorStats (pixelData, width, height) { // Export the function
   if (!pixelData || pixelData.length === 0 || width === 0 || height === 0) {
     return null;
   }
@@ -19,7 +20,7 @@ function calculateColorStats (pixelData, width, height) {
     return null;
   }
 
-  // Use arrays to accumulate sums and values for variance calculation
+  // Arrays to accumulate values for stats and visualization
   const hValues = [];
   const sValues = [];
   const vValues = [];
@@ -27,12 +28,11 @@ function calculateColorStats (pixelData, width, height) {
   const aValues = [];
   const bValues = [];
 
-  // Process every Nth pixel for performance on large images?
-  // For now, process all pixels.
-  const sampleFactor = 1; // Process every 1st pixel (all)
-  const numSamples = Math.floor(totalPixels / sampleFactor);
+  // Process a sampled set of pixels for performance.
+  // A higher sample factor means processing fewer pixels.
+  const sampleFactor = 1; // Process every 1st pixel (all) for stats accuracy
 
-
+  // Process all pixels for accurate stats calculation
   for (let i = 0; i < pixelData.length; i += 4 * sampleFactor) {
     const r = pixelData[i];
     const g = pixelData[i + 1];
@@ -94,7 +94,7 @@ function calculateColorStats (pixelData, width, height) {
       avg: [avgL, avgA, avgB],
       stdDev: [stdDevL, stdDevA, stdDevB]
     },
-    // Also return the raw values arrays for visualization
+    // Return the raw values arrays for visualization (these might be sampled if sampleFactor > 1)
     rawValues: {
       h: hValues, s: sValues, v: vValues,
       l: lValues, a: aValues, b: bValues

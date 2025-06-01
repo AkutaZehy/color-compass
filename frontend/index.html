@@ -6,89 +6,123 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0"
     />
-    <title>Color Explorer - Step 4</title>
+    <title>Color Explorer for Artists</title>
     <link rel="stylesheet" href="css/style.css" />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      .content-wrapper {
+        padding: 20px;
+      }
+    </style>
+
+    <!-- Add Import Map here -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./lib/three/build/three.module.js",
+          "three/addons/": "./lib/three/examples/jsm/"
+        }
+      }
+    </script>
+
+    <!-- Import Three.js and OrbitControls as ES Modules -->
+    <!-- These now rely on the importmap above to resolve their internal 'three' and 'three/addons/' imports -->
+    <script type="module" src="lib/three/build/three.module.js"></script>
+    <script
+      type="module"
+      src="lib/three/examples/jsm/controls/OrbitControls.js"
+    ></script>
+
+    <!-- Import local JavaScript modules -->
+    <!-- The order here matters for dependency loading, but browsers handle it with modules -->
+    <!-- main.js should technically be the last script in the body for DOMContentLoaded, but putting it last here is also fine -->
+    <script type="module" src="js/colorUtils.js"></script>
+    <script type="module" src="js/imageHandler.js"></script>
+    <script type="module" src="js/medianCut.js"></script>
+    <script type="module" src="js/paletteAnalyzer.js"></script>
+    <script type="module" src="js/paletteRenderer.js"></script>
+    <script type="module" src="js/colorStats.js"></script>
+    <script type="module" src="js/visualization2D.js"></script>
+    <script type="module" src="js/sphereRenderer3D.js"></script>
+    <script type="module" src="js/main.js"></script>
   </head>
   <body>
-    <h1>Color Explorer for Artists</h1>
+    <!-- ... rest of body ... -->
+    <div class="content-wrapper">
+      <!-- ... H1, input, image-display, hiddenCanvas ... -->
+      <h1>Color Explorer for Artists</h1>
+      <div class="input-section">
+        <label for="imageInput"
+          >选择一张图片文件 (.jpg, .png, etc.):</label
+        >
+        <input type="file" id="imageInput" accept="image/*" />
+      </div>
+      <div class="image-display">
+        <img id="uploadedImage" src="#" alt="Uploaded Image" />
+      </div>
+      <canvas id="hiddenCanvas" style="display: none"></canvas>
 
-    <div class="input-section">
-      <label for="imageInput">选择一张图片文件 (.jpg, .png, etc.):</label>
-      <input type="file" id="imageInput" accept="image/*" />
-      <!-- TODO: Add input for max palette colors, color threshold -->
-    </div>
-
-    <div class="image-display">
-      <img id="uploadedImage" src="#" alt="Uploaded Image" />
-    </div>
-
-    <!-- 隐藏的 Canvas 用于获取像素数据 -->
-    <canvas id="hiddenCanvas" style="display: none"></canvas>
-
-    <div class="palette-section">
-      <h2>提取的调色板</h2>
-      <canvas id="paletteCanvas"></canvas>
-      <p id="palettePlaceholder">请选择图片以生成调色板。</p>
-    </div>
-
-    <!-- --- Step 4: Color Analysis Section --- -->
-    <div class="color-analysis-section">
-      <h2>色彩倾向分析</h2>
-
-      <div class="stats-summary">
-        <h3>统计摘要:</h3>
-        <p id="hsvStats"></p>
-        <p id="labStats"></p>
+      <!-- ... palette section ... -->
+      <div class="palette-section">
+        <h2>提取的调色板</h2>
+        <canvas id="paletteCanvas"></canvas>
+        <p id="palettePlaceholder">请选择图片以生成调色板。</p>
       </div>
 
-      <div class="histograms-2d-viz">
-        <h3>颜色分布图:</h3>
-        <div class="histograms-container">
-          <!-- Histograms for HSV and Lab channels -->
-          <div class="chart-container">
-            <canvas id="histH"></canvas>
-            <p>色相 (Hue)</p>
-          </div>
-          <div class="chart-container">
-            <canvas id="histS"></canvas>
-            <p>饱和度 (Saturation)</p>
-          </div>
-          <div class="chart-container">
-            <canvas id="histV"></canvas>
-            <p>明度 (Value)</p>
-          </div>
-          <div class="chart-container">
-            <canvas id="histL"></canvas>
-            <p>明度 (L*)</p>
-          </div>
-          <div class="chart-container">
-            <canvas id="hista"></canvas>
-            <p>红-绿 (a*)</p>
-          </div>
-          <div class="chart-container">
-            <canvas id="histb"></canvas>
-            <p>黄-蓝 (b*)</p>
-          </div>
+      <!-- ... color analysis section ... -->
+      <div class="color-analysis-section">
+        <h2>色彩倾向分析</h2>
+        <div class="stats-summary">
+          <h3>统计摘要:</h3>
+          <p id="hsvStats"></p>
+          <p id="labStats"></p>
         </div>
-
-        <!-- Lab a*b* Scatter Plot -->
-        <div class="chart-container large-chart">
-          <canvas id="labScatter"></canvas>
-          <p>Lab a*b* 分布</p>
+        <div class="histograms-2d-viz">
+          <h3>颜色分布图:</h3>
+          <div class="histograms-container">
+            <div class="chart-container">
+              <canvas id="histH"></canvas>
+              <p>色相 (Hue)</p>
+            </div>
+            <div class="chart-container">
+              <canvas id="histS"></canvas>
+              <p>饱和度 (Saturation)</p>
+            </div>
+            <div class="chart-container">
+              <canvas id="histV"></canvas>
+              <p>明度 (Value)</p>
+            </div>
+            <div class="chart-container">
+              <canvas id="histL"></canvas>
+              <p>明度 (L*)</p>
+            </div>
+            <div class="chart-container">
+              <canvas id="hista"></canvas>
+              <p>红-绿 (a*)</p>
+            </div>
+            <div class="chart-container">
+              <canvas id="histb"></canvas>
+              <p>黄-蓝 (b*)</p>
+            </div>
+          </div>
+          <div class="chart-container large-chart">
+            <canvas id="labScatter"></canvas>
+            <p>Lab a*b* 分布</p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- 引入必要的 JavaScript 文件 -->
-    <script src="js/imageHandler.js"></script>
-    <script src="js/colorUtils.js"></script>
-    <script src="js/medianCut.js"></script>
-    <script src="js/paletteAnalyzer.js"></script>
-    <script src="js/paletteRenderer.js"></script>
-    <script src="js/colorStats.js"></script>
-    <!-- 新增 -->
-    <script src="js/visualization2D.js"></script>
-    <!-- 新增 -->
-    <script src="js/main.js"></script>
+      <!-- ... 3D sphere section ... -->
+      <div class="color-sphere-section">
+        <h2>Lab 色彩空间 (3D)</h2>
+        <div id="sphereContainer"></div>
+        <p id="spherePlaceholder">请选择图片以生成 3D 色球。</p>
+      </div>
+    </div>
+    <!-- End of content-wrapper -->
+    <!-- No script tags needed here for type="module" -->
   </body>
 </html>

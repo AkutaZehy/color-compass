@@ -7,7 +7,7 @@
  * @param {HTMLImageElement} imgElement - The <img> element to display the image.
  * @returns {Promise<HTMLImageElement>} A promise that resolves with the loaded imgElement, or rejects on error.
  */
-function loadImageAndDisplay (file, imgElement) {
+export function loadImageAndDisplay (file, imgElement) {
   return new Promise((resolve, reject) => {
     if (!file || !(file instanceof File)) {
       console.error("Invalid file provided.");
@@ -57,7 +57,8 @@ function loadImageAndDisplay (file, imgElement) {
 * @param {HTMLCanvasElement} canvasElement - The <canvas> element to draw onto.
 * @returns {Uint8ClampedArray | null} The pixel data array (R, G, B, A for each pixel), or null if an error occurred.
 */
-function getCanvasPixelData (imgElement, canvasElement) {
+export function getCanvasPixelData (imgElement, canvasElement) {
+  // Check if the image is fully loaded and has dimensions
   if (!imgElement || !canvasElement || !imgElement.complete || imgElement.naturalWidth === 0) {
     console.error("Invalid image element or canvas provided, or image not fully loaded.");
     return null;
@@ -73,12 +74,10 @@ function getCanvasPixelData (imgElement, canvasElement) {
   ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
   // Draw the image onto the canvas
-  // Important: Using drawImage allows access to pixel data via getImageData
   ctx.drawImage(imgElement, 0, 0, canvasElement.width, canvasElement.height);
 
   try {
     // Get the pixel data
-    // getImageData returns ImageData object, .data property is Uint8ClampedArray
     const imageData = ctx.getImageData(0, 0, canvasElement.width, canvasElement.height);
     return imageData.data; // This is the Uint8ClampedArray (R, G, B, A, R, G, B, A, ...)
   } catch (e) {
