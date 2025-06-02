@@ -72,7 +72,7 @@ export function drawPalette (palette, canvasElement, totalPixels) {
     if (color.isBackground) {
       ctx.fillStyle = '#00ff00';
       ctx.fillText("背景", currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap);
-    } else if (color.isFeature) {
+    } else if (color.isHidden) {
       ctx.fillStyle = '#ffff00';
       ctx.fillText("特色", currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap);
     }

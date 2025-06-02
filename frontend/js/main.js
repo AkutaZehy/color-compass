@@ -3,8 +3,9 @@
 // Import functions/classes from other modules
 // loadImageAndDisplay still takes a File, but it uses FileReader internally which handles Blobs as well.
 import { loadImageAndDisplay, getCanvasPixelData } from './imageHandler.js';
-import { extractPaletteMedianCut } from './medianCut.js';
+import { extractDominantColors } from './medianCut.js';
 import { analyzePalette } from './paletteAnalyzer.js';
+import { applySLIC } from './slic.js';
 import { drawPalette, exportPaletteAsImage } from './paletteRenderer.js'; // Import export function
 import { calculateColorStats } from './colorStats.js';
 import { drawHistogram, drawLabScatterPlotRevised } from './visualization2D.js';
@@ -43,12 +44,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Palette Parameters with Default Values ---
   const paletteParams = {
-    maxColors: 10,
-    minColors: 5,
-    featureThreshold: 30,
-    backgroundThreshold: 10,
-    maxSplit: 50,
-    mergeIntensity: 0.1
+    // 主参数
+    paletteSize: 15, // 总色板颜色数量
+    // 主色参数
+    dominantColors: 8, // 主色数量(1-3)
+    // 藏色参数  
+    maxHiddenColors: 3, // 藏色最大数量
+    minHiddenPercentage: 0.01, // 藏色最小占比阈值
+    // SLIC参数
+    superpixelCount: 200, // 超像素数量
+    superpixelCompactness: 10, // 超像素紧密度
+    // 背景色参数
+    maxBackgrounds: 2, // 最大背景色数量
+    backgroundVarianceScale: 1 // 背景色方差扩展系数
   };
 
   // --- Get HTML Elements ---
@@ -61,41 +69,47 @@ document.addEventListener('DOMContentLoaded', () => {
   const toggleAdvancedBtn = document.getElementById('toggleAdvancedBtn'); // Toggle advanced params
 
   // Parameter controls
-  const maxColorsInput = document.getElementById('maxColors');
-  const minColorsInput = document.getElementById('minColors');
-  const featureThresholdInput = document.getElementById('featureThreshold');
-  const maxSplitInput = document.getElementById('maxSplit');
-  const mergeIntensityInput = document.getElementById('mergeIntensity');
+  const paletteSizeInput = document.getElementById('paletteSize');
+  const dominantColorsInput = document.getElementById('dominantColors');
+  const maxHiddenColorsInput = document.getElementById('maxHiddenColors');
+  const minHiddenPercentageInput = document.getElementById('minHiddenPercentage');
+  const superpixelCountInput = document.getElementById('superpixelCount');
+  const superpixelCompactnessInput = document.getElementById('superpixelCompactness');
+  const maxBackgrounds = document.getElementById('maxBackgrounds');
 
   // Parameter value displays
-  const maxColorsValue = document.getElementById('maxColorsValue');
-  const minColorsValue = document.getElementById('minColorsValue');
-  const featureThresholdValue = document.getElementById('featureThresholdValue');
-  const maxSplitValue = document.getElementById('maxSplitValue');
-  const mergeIntensityValue = document.getElementById('mergeIntensityValue');
+  const paletteSizeValue = document.getElementById('paletteSizeValue');
+  const dominantColorsValue = document.getElementById('dominantColorsValue');
+  const maxBackgroundsValue = document.getElementById('maxBackgroundsValue');
 
   // Initialize parameter controls
   function initParamControls () {
     // Set initial values
-    maxColorsInput.value = paletteParams.maxColors;
-    minColorsInput.value = paletteParams.minColors;
-    featureThresholdInput.value = paletteParams.featureThreshold;
-    maxSplitInput.value = paletteParams.maxSplit;
-    mergeIntensityInput.value = paletteParams.mergeIntensity;
+    paletteSizeInput.value = paletteParams.paletteSize;
+    dominantColorsInput.value = paletteParams.dominantColors;
+    maxHiddenColorsInput.value = paletteParams.maxHiddenColors;
+    minHiddenPercentageInput.value = paletteParams.minHiddenPercentage;
+    superpixelCountInput.value = paletteParams.superpixelCount;
+    superpixelCompactnessInput.value = paletteParams.superpixelCompactness;
+    maxBackgrounds.value = paletteParams.maxBackgrounds;
 
     // Update displayed values
-    maxColorsValue.textContent = paletteParams.maxColors;
-    minColorsValue.textContent = paletteParams.minColors;
-    featureThresholdValue.textContent = paletteParams.featureThreshold;
-    maxSplitValue.textContent = paletteParams.maxSplit;
-    mergeIntensityValue.textContent = paletteParams.mergeIntensity.toFixed(1);
+    paletteSizeValue.textContent = paletteParams.paletteSize;
+    dominantColorsValue.textContent = paletteParams.dominantColors;
+    maxHiddenColorsValue.textContent = paletteParams.maxHiddenColors;
+    minHiddenPercentageValue.textContent = paletteParams.minHiddenPercentage;
+    superpixelCountValue.textContent = paletteParams.superpixelCount;
+    superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness;
+    maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
 
     // Add event listeners
-    maxColorsInput.addEventListener('input', updateParamsFromControls);
-    minColorsInput.addEventListener('input', updateParamsFromControls);
-    featureThresholdInput.addEventListener('input', updateParamsFromControls);
-    maxSplitInput.addEventListener('input', updateParamsFromControls);
-    mergeIntensityInput.addEventListener('input', updateParamsFromControls);
+    paletteSizeInput.addEventListener('input', updateParamsFromControls);
+    dominantColorsInput.addEventListener('input', updateParamsFromControls);
+    maxHiddenColorsInput.addEventListener('input', updateParamsFromControls);
+    minHiddenPercentageInput.addEventListener('input', updateParamsFromControls);
+    superpixelCountInput.addEventListener('input', updateParamsFromControls);
+    superpixelCompactnessInput.addEventListener('input', updateParamsFromControls);
+    maxBackgrounds.addEventListener('input', updateParamsFromControls);
 
     // Toggle advanced params
     toggleAdvancedBtn.addEventListener('click', () => {
@@ -108,18 +122,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Update params from control values
   function updateParamsFromControls () {
-    paletteParams.maxColors = parseInt(maxColorsInput.value);
-    paletteParams.minColors = parseInt(minColorsInput.value);
-    paletteParams.featureThreshold = parseInt(featureThresholdInput.value);
-    paletteParams.maxSplit = parseInt(maxSplitInput.value);
-    paletteParams.mergeIntensity = parseFloat(mergeIntensityInput.value);
+    paletteParams.paletteSize = parseInt(paletteSizeInput.value);
+    paletteParams.dominantColors = parseInt(dominantColorsInput.value);
+    paletteParams.maxHiddenColors = parseInt(maxHiddenColorsInput.value);
+    paletteParams.minHiddenPercentage = parseFloat(minHiddenPercentageInput.value);
+    paletteParams.superpixelCount = parseInt(superpixelCountInput.value);
+    paletteParams.superpixelCompactness = parseFloat(superpixelCompactnessInput.value);
+    paletteParams.maxBackgrounds = parseInt(maxBackgrounds.value);
 
     // Update displayed values
-    maxColorsValue.textContent = paletteParams.maxColors;
-    minColorsValue.textContent = paletteParams.minColors;
-    featureThresholdValue.textContent = paletteParams.featureThreshold;
-    maxSplitValue.textContent = paletteParams.maxSplit;
-    mergeIntensityValue.textContent = paletteParams.mergeIntensity.toFixed(1);
+    paletteSizeValue.textContent = paletteParams.paletteSize;
+    dominantColorsValue.textContent = paletteParams.dominantColors;
+    maxHiddenColorsValue.textContent = paletteParams.maxHiddenColors;
+    minHiddenPercentageValue.textContent = paletteParams.minHiddenPercentage;
+    superpixelCountValue.textContent = paletteParams.superpixelCount;
+    superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness;
+    maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
   }
 
   // Initialize controls
@@ -134,16 +152,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const totalPixels = currentImageSize.width * currentImageSize.height;
 
-      // Extract and analyze palette with current parameters
-      const rawPalette = extractPaletteMedianCut(currentPixelData, paletteParams.maxSplit);
+      // 1. 使用SLIC超像素预处理
+      const superpixelData = applySLIC(
+        currentPixelData,
+        currentImageSize.width,
+        currentImageSize.height,
+        paletteParams.superpixelCount,
+        paletteParams.superpixelCompactness
+      );
+
+      // 2. 使用MMCQ提取主色
+      const dominantColors = extractDominantColors(
+        currentPixelData,
+        paletteParams.dominantColors
+      );
+
+      // 3. 使用二阶段Kmeans分析调色板
       const analyzedPalette = analyzePalette(
-        rawPalette,
-        paletteParams.featureThreshold,
-        totalPixels,
-        paletteParams.mergeIntensity,
-        paletteParams.backgroundThreshold,
-        paletteParams.maxColors,
-        paletteParams.minColors
+        currentPixelData,
+        dominantColors,
+        paletteParams.paletteSize,
+        paletteParams.maxHiddenColors,
+        paletteParams.minHiddenPercentage,
+        currentImageSize.width,
+        currentImageSize.height,
+        paletteParams.maxBackgrounds
       );
 
       // Sort and render palette
@@ -265,17 +298,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // --- Step 3: Extract, Analyze, and Render Palette ---
           console.log("Extracting and analyzing palette...");
-          // Use parameters from controls
-          const rawPalette = extractPaletteMedianCut(currentPixelData, paletteParams.maxSplit);
-          console.log(`Raw palette extracted (${rawPalette.length} colors).`);
+          // 1. 使用SLIC超像素预处理
+          const superpixelData = applySLIC(
+            currentPixelData,
+            currentImageSize.width,
+            currentImageSize.height,
+            paletteParams.superpixelCount,
+            paletteParams.superpixelCompactness
+          );
+
+          // 2. 使用MMCQ提取主色
+          const dominantColors = extractDominantColors(
+            currentPixelData,
+            paletteParams.dominantColors
+          );
+
+          // 3. 使用二阶段Kmeans分析调色板
           const analyzedPalette = analyzePalette(
-            rawPalette,
-            paletteParams.featureThreshold,
-            totalPixels,
-            paletteParams.mergeIntensity,
-            paletteParams.backgroundThreshold,
-            paletteParams.maxColors,
-            paletteParams.minColors
+            currentPixelData,
+            dominantColors,
+            paletteParams.paletteSize,
+            paletteParams.maxHiddenColors,
+            paletteParams.minHiddenPercentage,
+            currentImageSize.width,
+            currentImageSize.height,
+            paletteParams.maxBackgrounds
           );
           console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
 

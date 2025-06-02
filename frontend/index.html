@@ -72,9 +72,9 @@
             <h2>
               提取的调色板<span class="tooltip"
                 >?<span class="tooltiptext"
-                  >基于 Median Cut + K-means 实现的快速色板算法，由于
-                  K-means
-                  结果受初始化方法影响，不同尝试间可能生成的色板间略有差异。</span
+                  >基于 SLIC + MMCQ + Kmeans 实现的三阶段色板算法： 1.
+                  SLIC超像素预处理 2. MMCQ主色提取 3. 二阶段Kmeans聚类分析
+                  结果更加稳定准确。</span
                 ></span
               >
             </h2>
@@ -84,104 +84,140 @@
                 <div class="params-basic">
                   <h3>基本参数</h3>
                   <div class="param-group">
-                    <label for="maxColors"
-                      >最大颜色数量
+                    <label for="dominantColors"
+                      >色板主色数量
                       <span class="tooltip"
                         >?<span class="tooltiptext"
-                          >控制最终色板中最多显示多少种颜色。增加该值会使色板包含更多的颜色，减少则会使色板更加简化。</span
+                          >控制最终色板中主色的数量。色板中的主色由MMCQ生成。</span
                         ></span
                       >
                     </label>
                     <input
                       type="range"
-                      id="maxColors"
+                      id="dominantColors"
                       min="2"
-                      max="50"
-                      value="20"
+                      max="20"
+                      value="8"
                     />
-                    <span id="maxColorsValue">20</span>
+                    <span id="dominantColorsValue">8</span>
                   </div>
                 </div>
                 <div class="params-advanced">
                   <button id="toggleAdvancedBtn">显示高级参数</button>
                   <div class="advanced-content" style="display: none">
                     <div class="param-group">
-                      <label for="minColors"
-                        >最小颜色数量
+                      <label for="paletteSize"
+                        >最大颜色数量
                         <span class="tooltip"
                           >?<span class="tooltiptext"
-                            >控制最终色板中最少显示多少种颜色。增加该值会使色板保留更多的颜色，减少则会使色板更加简化。</span
+                            >控制最终色板中最多显示多少种颜色。增加该值会使色板包含更多的颜色，减少则会使色板更加简化。</span
                           ></span
                         >
                       </label>
                       <input
                         type="range"
-                        id="minColors"
+                        id="paletteSize"
                         min="2"
-                        max="20"
-                        value="8"
+                        max="50"
+                        value="20"
                       />
-                      <span id="minColorsValue">8</span>
+                      <span id="paletteSizeValue">20</span>
                     </div>
+
                     <div class="param-group">
-                      <label for="featureThreshold"
-                        >特色阈值
+                      <label for="maxHiddenColors"
+                        >藏色最大数量
                         <span class="tooltip"
                           >?<span class="tooltiptext"
-                            >控制识别特征颜色的阈值。基于 LAB
-                            距离，较低的值会使算法标记出更多的特色颜色。</span
+                            >控制算法最多识别多少种藏色(不常见但重要的颜色)。</span
                           ></span
                         >
                       </label>
                       <input
                         type="range"
-                        id="featureThreshold"
-                        min="5"
-                        max="100"
-                        value="50"
+                        id="maxHiddenColors"
+                        min="0"
+                        max="5"
+                        value="2"
                         step="1"
                       />
-                      <span id="featureThresholdValue">50</span>
+                      <span id="maxHiddenColorsValue">2</span>
                     </div>
                     <div class="param-group">
-                      <label for="maxSplit"
-                        >最大分裂
+                      <label for="minHiddenPercentage"
+                        >藏色最小占比
                         <span class="tooltip"
                           >?<span class="tooltiptext"
-                            >控制 Median Cut
-                            算法的分裂次数。增加该值会使初始调色板包含更多的颜色，减少则会使初始调色板更加简化。</span
+                            >控制识别藏色的最小像素占比阈值。</span
                           ></span
                         >
                       </label>
                       <input
                         type="range"
-                        id="maxSplit"
-                        min="20"
-                        max="200"
-                        value="50"
-                      />
-                      <span id="maxSplitValue">50</span>
-                    </div>
-                    <div class="param-group">
-                      <label for="mergeIntensity"
-                        >合并烈度
-                        <span class="tooltip"
-                          >?<span class="tooltiptext"
-                            >控制颜色合并的强度。基于 LAB 距离，在保证
-                            minColors 的前提下，保证尽可能多的簇间的 LAB
-                            距离高于该值。</span
-                          ></span
-                        >
-                      </label>
-                      <input
-                        type="range"
-                        id="mergeIntensity"
+                        id="minHiddenPercentage"
                         min="0"
-                        max="3.0"
-                        value="1.0"
-                        step="0.1"
+                        max="0.5"
+                        value="0.01"
+                        step="0.005"
                       />
-                      <span id="mergeIntensityValue">0.1</span>
+                      <span id="minHiddenPercentageValue">0.01</span>
+                    </div>
+                    <div class="param-group">
+                      <label for="superpixelCount"
+                        >超像素数量
+                        <span class="tooltip"
+                          >?<span class="tooltiptext"
+                            >控制SLIC算法生成的超像素区域数量。</span
+                          ></span
+                        >
+                      </label>
+                      <input
+                        type="range"
+                        id="superpixelCount"
+                        min="50"
+                        max="500"
+                        value="200"
+                        step="10"
+                      />
+                      <span id="superpixelCountValue">200</span>
+                    </div>
+                    <div class="param-group">
+                      <label for="superpixelCompactness"
+                        >超像素紧密度
+                        <span class="tooltip"
+                          >?<span class="tooltiptext"
+                            >控制SLIC超像素的形状规则程度(10-30)。</span
+                          ></span
+                        >
+                      </label>
+                      <input
+                        type="range"
+                        id="superpixelCompactness"
+                        min="1"
+                        max="30"
+                        value="10"
+                        step="1"
+                      />
+                      <span id="superpixelCompactnessValue">10</span>
+                    </div>
+                    <div class="param-group">
+                      <label for="maxBackgrounds"
+                        >潜在背景色数量
+                        <span class="tooltip"
+                          >?<span class="tooltiptext"
+                            >控制算法最多识别多少种背景色。</span
+                          ></span
+                        >
+                      </label>
+                      <input
+                        type="range"
+                        id="maxBackgrounds"
+                        min="1"
+                        max="5"
+                        value="3"
+                        step="1"
+                      />
+                      <span id="maxBackgroundsValue">3</span>
                     </div>
                   </div>
                 </div>

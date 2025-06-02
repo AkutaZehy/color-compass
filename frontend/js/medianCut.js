@@ -1,146 +1,147 @@
-// frontend/js/medianCut.js
-import { rgbToLab } from './colorUtils.js'; // Import Lab conversion
+/**
+ * Modified Median Cut Quantization (MMCQ) algorithm for dominant color extraction
+ * 
+ * @param {Uint8Array} pixelData - Image pixel data in RGBA format
+ * @param {number} colorCount - Number of dominant colors to extract
+ * @returns {Array} - Array of dominant colors in RGB format
+ */
+export function extractDominantColors (pixelData, colorCount) {
+  // Convert pixel data to color cubes
+  const cubes = [createInitialColorCube(pixelData)];
 
-// Helper class to represent a color box and its colors
-class ColorBox {
-  constructor(colors) {
-    this.colors = colors; // Array of {r, g, b, lab} objects (pixelIndex, originalR etc. were removed for simplicity)
-    // Initialize min/max with extreme values
-    this.min = { r: 255, g: 255, b: 255, l: 100, a: 128, b_lab: 128 }; // b_lab to avoid conflict with 'b' in rgb
-    this.max = { r: 0, g: 0, b: 0, l: 0, a: -128, b_lab: -128 }; // b_lab to avoid conflict
+  // Split cubes until we have the desired number of colors
+  while (cubes.length < colorCount) {
+    // Find the cube with the largest range
+    const cubeToSplit = findCubeWithLargestRange(cubes);
 
-    // Calculate min/max for the colors in this box
-    // If the box is empty, ranges will be invalid, handled when checking colors.length
-    this.colors.forEach(color => {
-      this.min.r = Math.min(this.min.r, color.r);
-      this.max.r = Math.max(this.max.r, color.r);
-      this.min.g = Math.min(this.min.g, color.g);
-      this.max.g = Math.max(this.max.g, color.g);
-      this.min.b = Math.min(this.min.b, color.b);
-      this.max.b = Math.max(this.max.b, color.b);
-      this.min.l = Math.min(this.min.l, color.lab[0]);
-      this.max.l = Math.max(this.max.l, color.lab[0]);
-      this.min.a = Math.min(this.min.a, color.lab[1]);
-      this.max.a = Math.max(this.max.a, color.lab[1]);
-      this.min.b_lab = Math.min(this.min.b_lab, color.lab[2]);
-      this.max.b_lab = Math.max(this.max.b_lab, color.lab[2]);
-    });
+    // Split the cube along the axis with the largest range
+    const [cube1, cube2] = splitColorCube(cubeToSplit);
 
-    // Calculate the range (width) of the box in each channel
-    this.range = {
-      r: this.max.r - this.min.r,
-      g: this.max.g - this.min.g,
-      b: this.max.b - this.min.b,
-      l: this.max.l - this.min.l,
-      a: this.max.a - this.min.a,
-      b_lab: this.max.b_lab - this.min.b_lab
-    };
+    // Replace the original cube with the two new cubes
+    cubes.splice(cubes.indexOf(cubeToSplit), 1, cube1, cube2);
   }
 
-  // Find the channel with the widest range (heuristic for splitting)
-  getWidestChannel () {
-    let widest = 'r';
-    let maxRange = this.range.r;
-
-    if (this.range.g > maxRange) {
-      widest = 'g';
-      maxRange = this.range.g;
-    }
-    if (this.range.b > maxRange) {
-      widest = 'b';
-      maxRange = this.range.b;
-    }
-    // Consider splitting based on Lab ranges if they are significantly larger
-    // Heuristic: prioritize Lab ranges more? Or combine RGB and Lab ranges?
-    // For simplicity, let's just check if any Lab range is the maximum.
-    if (this.range.l > maxRange) { widest = 'l'; maxRange = this.range.l; }
-    if (this.range.a > maxRange) { widest = 'a'; maxRange = this.range.a; }
-    if (this.range.b_lab > maxRange) { widest = 'b_lab'; maxRange = this.range.b_lab; }
-
-
-    return widest;
-  }
-
-  // Calculate the representative color (average) for this box
-  getAverageColor () {
-    if (this.colors.length === 0) return null; // Return null for empty boxes
-    let sumR = 0, sumG = 0, sumB = 0;
-    this.colors.forEach(color => {
-      sumR += color.r;
-      sumG += color.g;
-      sumB += color.b;
-    });
-    return {
-      r: Math.round(sumR / this.colors.length),
-      g: Math.round(sumG / this.colors.length),
-      b: Math.round(sumB / this.colors.length)
-    };
-  }
+  // Calculate average colors for each cube
+  return cubes.map(cube => calculateAverageColor(cube));
 }
 
-/**
- * Extracts a color palette from image pixel data using the Median Cut algorithm.
- * @param {Uint8ClampedArray} pixelData - The pixel data array (R, G, B, A) from canvas.getImageData.
- * @param {number} maxSplit - The maximum number of splits to perform (controls color granularity).
- * @returns {{r: number, g: number, b: number, count: number}[]} An array of extracted colors with their approximate pixel count.
- */
-export function extractPaletteMedianCut (pixelData, maxSplit) {
-  if (!pixelData || pixelData.length === 0 || maxSplit <= 0) {
-    return [];
-  }
+// Helper functions
 
-  // 1. Collect colors and convert to Lab
-  const allColors = [];
+function createInitialColorCube (pixelData) {
+  const cube = {
+    pixels: [],
+    minR: 255, maxR: 0,
+    minG: 255, maxG: 0,
+    minB: 255, maxB: 0
+  };
+
+  // Process pixel data and find min/max values
   for (let i = 0; i < pixelData.length; i += 4) {
-    allColors.push({
-      r: pixelData[i],
-      g: pixelData[i + 1],
-      b: pixelData[i + 2],
-      lab: rgbToLab(pixelData[i], pixelData[i + 1], pixelData[i + 2])
-    });
+    const r = pixelData[i];
+    const g = pixelData[i + 1];
+    const b = pixelData[i + 2];
+
+    cube.pixels.push({ r, g, b });
+
+    // Update min/max values
+    if (r < cube.minR) cube.minR = r;
+    if (r > cube.maxR) cube.maxR = r;
+    if (g < cube.minG) cube.minG = g;
+    if (g > cube.maxG) cube.maxG = g;
+    if (b < cube.minB) cube.minB = b;
+    if (b > cube.maxB) cube.maxB = b;
   }
 
-  // 2. Initialize with a single box
-  let colorBoxes = [new ColorBox(allColors)];
+  return cube;
+}
 
-  // 3. Split boxes until maxSplit is reached
-  let splits = 0;
-  const finalSplit = Math.min(maxSplit ** 2, 40000); // CORE
-  while (splits < finalSplit) {
-    // Find the largest box to split
-    let largestBoxIndex = 0;
-    for (let i = 1; i < colorBoxes.length; i++) {
-      if (colorBoxes[i].colors.length > colorBoxes[largestBoxIndex].colors.length) {
-        largestBoxIndex = i;
-      }
+function findCubeWithLargestRange (cubes) {
+  let maxRange = -1;
+  let selectedCube = null;
+
+  cubes.forEach(cube => {
+    const rangeR = cube.maxR - cube.minR;
+    const rangeG = cube.maxG - cube.minG;
+    const rangeB = cube.maxB - cube.minB;
+
+    const maxCubeRange = Math.max(rangeR, rangeG, rangeB);
+
+    if (maxCubeRange > maxRange) {
+      maxRange = maxCubeRange;
+      selectedCube = cube;
     }
+  });
 
-    const boxToSplit = colorBoxes[largestBoxIndex];
-    if (boxToSplit.colors.length <= 1) break; // Can't split further
+  return selectedCube;
+}
 
-    // Split along widest channel
-    const widestChannel = boxToSplit.getWidestChannel();
-    boxToSplit.colors.sort((a, b) => {
-      const channel = widestChannel === 'l' ? 0 :
-        widestChannel === 'a' ? 1 :
-          widestChannel === 'b_lab' ? 2 : widestChannel;
-      return a.lab[channel] - b.lab[channel];
-    });
+function splitColorCube (cube) {
+  // Determine which color channel has the largest range
+  const rangeR = cube.maxR - cube.minR;
+  const rangeG = cube.maxG - cube.minG;
+  const rangeB = cube.maxB - cube.minB;
 
-    const medianIndex = Math.floor(boxToSplit.colors.length / 2);
-    const box1 = new ColorBox(boxToSplit.colors.slice(0, medianIndex));
-    const box2 = new ColorBox(boxToSplit.colors.slice(medianIndex));
+  const maxRange = Math.max(rangeR, rangeG, rangeB);
+  let sortBy = 'r';
 
-    // Replace with new boxes
-    colorBoxes.splice(largestBoxIndex, 1, box1, box2);
-    splits++;
+  if (maxRange === rangeG) {
+    sortBy = 'g';
+  } else if (maxRange === rangeB) {
+    sortBy = 'b';
   }
 
-  // 4. Generate final palette
-  return colorBoxes
-    .map(box => {
-      const avg = box.getAverageColor();
-      return avg ? { ...avg, count: box.colors.length } : null;
-    })
-    .filter(Boolean);
+  // Sort pixels by the selected channel
+  cube.pixels.sort((a, b) => a[sortBy] - b[sortBy]);
+
+  // Find median index
+  const medianIndex = Math.floor(cube.pixels.length / 2);
+
+  // Create two new cubes
+  const cube1 = {
+    pixels: cube.pixels.slice(0, medianIndex),
+    minR: 255, maxR: 0,
+    minG: 255, maxG: 0,
+    minB: 255, maxB: 0
+  };
+
+  const cube2 = {
+    pixels: cube.pixels.slice(medianIndex),
+    minR: 255, maxR: 0,
+    minG: 255, maxG: 0,
+    minB: 255, maxB: 0
+  };
+
+  // Calculate new min/max for each cube
+  updateCubeMinMax(cube1);
+  updateCubeMinMax(cube2);
+
+  return [cube1, cube2];
+}
+
+function updateCubeMinMax (cube) {
+  cube.pixels.forEach(pixel => {
+    if (pixel.r < cube.minR) cube.minR = pixel.r;
+    if (pixel.r > cube.maxR) cube.maxR = pixel.r;
+    if (pixel.g < cube.minG) cube.minG = pixel.g;
+    if (pixel.g > cube.maxG) cube.maxG = pixel.g;
+    if (pixel.b < cube.minB) cube.minB = pixel.b;
+    if (pixel.b > cube.maxB) cube.maxB = pixel.b;
+  });
+}
+
+function calculateAverageColor (cube) {
+  let sumR = 0, sumG = 0, sumB = 0;
+  const count = cube.pixels.length;
+
+  cube.pixels.forEach(pixel => {
+    sumR += pixel.r;
+    sumG += pixel.g;
+    sumB += pixel.b;
+  });
+
+  return {
+    r: Math.round(sumR / count),
+    g: Math.round(sumG / count),
+    b: Math.round(sumB / count)
+  };
 }
