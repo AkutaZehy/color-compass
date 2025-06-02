@@ -69,15 +69,7 @@
       <div class="dashboard-container">
         <div class="left-panel">
           <div class="palette-section">
-            <h2>
-              提取的调色板<span class="tooltip"
-                >?<span class="tooltiptext"
-                  >基于 SLIC + MMCQ + Kmeans 实现的三阶段色板算法： 1.
-                  SLIC超像素预处理 2. MMCQ主色提取 3. 二阶段Kmeans聚类分析
-                  结果更加稳定准确。</span
-                ></span
-              >
-            </h2>
+            <h2>提取的调色板</h2>
             <div class="palette-controls">
               <button id="reRenderPaletteBtn">重新渲染调色板</button>
               <div class="palette-params">
@@ -85,10 +77,10 @@
                   <h3>基本参数</h3>
                   <div class="param-group">
                     <label for="dominantColors"
-                      >色板主色数量
+                      >色板颜色数量
                       <span class="tooltip"
                         >?<span class="tooltiptext"
-                          >控制最终色板中主色的数量。色板中的主色由MMCQ生成。</span
+                          >控制色板中颜色的数量。</span
                         ></span
                       >
                     </label>
@@ -110,7 +102,7 @@
                         >最大颜色数量
                         <span class="tooltip"
                           >?<span class="tooltiptext"
-                            >控制最终色板中最多显示多少种颜色。增加该值会使色板包含更多的颜色，减少则会使色板更加简化。</span
+                            >控制最终色板中最多显示多少种颜色。增加该值会使色板被允许包含更多的颜色，配合色板颜色数量使用。</span
                           ></span
                         >
                       </label>
@@ -167,7 +159,7 @@
                         >超像素数量
                         <span class="tooltip"
                           >?<span class="tooltiptext"
-                            >控制SLIC算法生成的超像素区域数量。</span
+                            >控制SLIC算法生成的超像素区域数量。提高该值可以一定程度改善色板颜色的丰富程度。警告：提高该值会显著延长生成色板所需的时间。</span
                           ></span
                         >
                       </label>
@@ -186,7 +178,7 @@
                         >超像素紧密度
                         <span class="tooltip"
                           >?<span class="tooltiptext"
-                            >控制SLIC超像素的形状规则程度(10-30)。</span
+                            >控制SLIC超像素的形状规则程度。提高该值可以一定程度抑制色板中相似颜色的输出。</span
                           ></span
                         >
                       </label>
@@ -194,7 +186,7 @@
                         type="range"
                         id="superpixelCompactness"
                         min="1"
-                        max="30"
+                        max="50"
                         value="10"
                         step="1"
                       />
@@ -202,10 +194,10 @@
                     </div>
                     <div class="param-group">
                       <label for="backgroundVarianceScale"
-                        >背景色匹配阈值
+                        >背景色匹配系数
                         <span class="tooltip"
                           >?<span class="tooltiptext"
-                            >控制背景色匹配的阈值比例(0.5-10.0)。</span
+                            >控制背景色匹配的阈值比例。提高该值可以提高背景容忍近邻颜色的程度。</span
                           ></span
                         >
                       </label>

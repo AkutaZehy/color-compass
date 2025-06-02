@@ -2,6 +2,7 @@
 
 ![License](https://img.shields.io/github/license/AkutaZehy/color-compass?style=flat-square)
 ![Repo Size](https://img.shields.io/github/repo-size/AkutaZehy/color-compass?style=flat-square)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/AkutaZehy/color-compass)
 
 ## ✨ 简介
 
