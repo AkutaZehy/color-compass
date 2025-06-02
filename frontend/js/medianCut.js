@@ -5,9 +5,9 @@
  * @param {number} colorCount - Number of dominant colors to extract
  * @returns {Array} - Array of dominant colors in RGB format
  */
-export function extractDominantColors (pixelData, colorCount) {
+export function extractDominantColors (pixelData, colorCount, useDownsampling = true) {
   // Convert pixel data to color cubes
-  const cubes = [createInitialColorCube(pixelData)];
+  const cubes = [createInitialColorCube(pixelData, useDownsampling)];
 
   // Split cubes until we have the desired number of colors
   while (cubes.length < colorCount) {
@@ -27,7 +27,56 @@ export function extractDominantColors (pixelData, colorCount) {
 
 // Helper functions
 
-function createInitialColorCube (pixelData) {
+function downsamplePixelData (pixelData) {
+  const downsampled = [];
+
+  // Calculate total pixels (RGBA = 4 values per pixel)
+  const totalPixels = pixelData.length / 4;
+
+  // If already below threshold, return original
+  if (totalPixels <= 1e4) return pixelData;
+
+  // Calculate n for n*n pooling to reduce to ~1e5 pixels
+  const n = Math.ceil(Math.sqrt(totalPixels / 1e4));
+  const blockSize = n * n;
+  const blockStride = n * 4; // n pixels in RGBA format
+
+  // n*n average pooling
+  for (let i = 0; i < pixelData.length; i += blockStride) {
+    // Skip incomplete blocks
+    if (i + (blockSize - 1) * 4 >= pixelData.length) continue;
+
+    let sumR = 0, sumG = 0, sumB = 0;
+    let count = 0;
+
+    // Sum values in current block
+    for (let j = 0; j < blockSize; j++) {
+      const idx = i + j * 4;
+      if (idx >= pixelData.length) break;
+
+      sumR += pixelData[idx];
+      sumG += pixelData[idx + 1];
+      sumB += pixelData[idx + 2];
+      count++;
+    }
+
+    // Calculate average and add to result
+    downsampled.push(
+      Math.round(sumR / count),
+      Math.round(sumG / count),
+      Math.round(sumB / count),
+      255 // Alpha channel
+    );
+  }
+
+  return new Uint8Array(downsampled);
+}
+
+function createInitialColorCube (pixelData, useDownsampling = true) {
+  // Apply downsampling if enabled
+
+  const processedData = useDownsampling ? downsamplePixelData(pixelData) : pixelData;
+
   const cube = {
     pixels: [],
     minR: 255, maxR: 0,
@@ -36,10 +85,25 @@ function createInitialColorCube (pixelData) {
   };
 
   // Process pixel data and find min/max values
-  for (let i = 0; i < pixelData.length; i += 4) {
-    const r = pixelData[i];
-    const g = pixelData[i + 1];
-    const b = pixelData[i + 2];
+  // for (let i = 0; i < pixelData.length; i += 4) {
+  //   const r = pixelData[i];
+  //   const g = pixelData[i + 1];
+  //   const b = pixelData[i + 2];
+
+  //   cube.pixels.push({ r, g, b });
+
+  //   // Update min/max values
+  //   if (r < cube.minR) cube.minR = r;
+  //   if (r > cube.maxR) cube.maxR = r;
+  //   if (g < cube.minG) cube.minG = g;
+  //   if (g > cube.maxG) cube.maxG = g;
+  //   if (b < cube.minB) cube.minB = b;
+  //   if (b > cube.maxB) cube.maxB = b;
+  // }
+  for (let i = 0; i < processedData.length; i += 4) {
+    const r = processedData[i];
+    const g = processedData[i + 1];
+    const b = processedData[i + 2];
 
     cube.pixels.push({ r, g, b });
 

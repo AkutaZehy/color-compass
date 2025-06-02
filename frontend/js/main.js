@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Palette Parameters with Default Values ---
   const paletteParams = {
     // 主参数
-    paletteSize: 15, // 总色板颜色数量
+    paletteSize: 25, // 总色板颜色数量
     // 主色参数
     dominantColors: 8, // 主色数量(1-3)
     // 藏色参数  
@@ -56,7 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
     superpixelCompactness: 10, // 超像素紧密度
     // 背景色参数
     maxBackgrounds: 2, // 最大背景色数量
-    backgroundVarianceScale: 1 // 背景色方差扩展系数
+    backgroundVarianceScale: 1, // 背景色方差扩展系数
+    useSuperpixels: true // 是否使用SLIC超像素预处理 
   };
 
   // --- Get HTML Elements ---
@@ -75,12 +76,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const minHiddenPercentageInput = document.getElementById('minHiddenPercentage');
   const superpixelCountInput = document.getElementById('superpixelCount');
   const superpixelCompactnessInput = document.getElementById('superpixelCompactness');
-  const maxBackgrounds = document.getElementById('maxBackgrounds');
+  const maxBackgroundsInput = document.getElementById('maxBackgrounds');
+  const backgroundVarianceScaleInput = document.getElementById('backgroundVarianceScale');
 
   // Parameter value displays
   const paletteSizeValue = document.getElementById('paletteSizeValue');
   const dominantColorsValue = document.getElementById('dominantColorsValue');
   const maxBackgroundsValue = document.getElementById('maxBackgroundsValue');
+  const backgroundVarianceScaleValue = document.getElementById('backgroundVarianceScaleValue');
 
   // Initialize parameter controls
   function initParamControls () {
@@ -91,16 +94,18 @@ document.addEventListener('DOMContentLoaded', () => {
     minHiddenPercentageInput.value = paletteParams.minHiddenPercentage;
     superpixelCountInput.value = paletteParams.superpixelCount;
     superpixelCompactnessInput.value = paletteParams.superpixelCompactness;
-    maxBackgrounds.value = paletteParams.maxBackgrounds;
+    maxBackgroundsInput.value = paletteParams.maxBackgrounds;
+    backgroundVarianceScaleInput.value = paletteParams.backgroundVarianceScale;
 
     // Update displayed values
     paletteSizeValue.textContent = paletteParams.paletteSize;
     dominantColorsValue.textContent = paletteParams.dominantColors;
     maxHiddenColorsValue.textContent = paletteParams.maxHiddenColors;
-    minHiddenPercentageValue.textContent = paletteParams.minHiddenPercentage;
+    minHiddenPercentageValue.textContent = paletteParams.minHiddenPercentage.toFixed(3);
     superpixelCountValue.textContent = paletteParams.superpixelCount;
-    superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness;
+    superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness.toFixed(1);
     maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
+    backgroundVarianceScaleValue.textContent = paletteParams.backgroundVarianceScale.toFixed(1);
 
     // Add event listeners
     paletteSizeInput.addEventListener('input', updateParamsFromControls);
@@ -109,7 +114,8 @@ document.addEventListener('DOMContentLoaded', () => {
     minHiddenPercentageInput.addEventListener('input', updateParamsFromControls);
     superpixelCountInput.addEventListener('input', updateParamsFromControls);
     superpixelCompactnessInput.addEventListener('input', updateParamsFromControls);
-    maxBackgrounds.addEventListener('input', updateParamsFromControls);
+    maxBackgroundsInput.addEventListener('input', updateParamsFromControls);
+    backgroundVarianceScaleInput.addEventListener('input', updateParamsFromControls);
 
     // Toggle advanced params
     toggleAdvancedBtn.addEventListener('click', () => {
@@ -128,16 +134,18 @@ document.addEventListener('DOMContentLoaded', () => {
     paletteParams.minHiddenPercentage = parseFloat(minHiddenPercentageInput.value);
     paletteParams.superpixelCount = parseInt(superpixelCountInput.value);
     paletteParams.superpixelCompactness = parseFloat(superpixelCompactnessInput.value);
-    paletteParams.maxBackgrounds = parseInt(maxBackgrounds.value);
+    paletteParams.maxBackgrounds = parseInt(maxBackgroundsInput.value);
+    paletteParams.backgroundVarianceScale = parseFloat(backgroundVarianceScaleInput.value);
 
     // Update displayed values
     paletteSizeValue.textContent = paletteParams.paletteSize;
     dominantColorsValue.textContent = paletteParams.dominantColors;
     maxHiddenColorsValue.textContent = paletteParams.maxHiddenColors;
-    minHiddenPercentageValue.textContent = paletteParams.minHiddenPercentage;
+    minHiddenPercentageValue.textContent = paletteParams.minHiddenPercentage.toFixed(3);
     superpixelCountValue.textContent = paletteParams.superpixelCount;
-    superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness;
+    superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness.toFixed(1);
     maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
+    backgroundVarianceScaleValue.textContent = paletteParams.backgroundVarianceScale.toFixed(1);
   }
 
   // Initialize controls
@@ -176,8 +184,12 @@ document.addEventListener('DOMContentLoaded', () => {
         paletteParams.minHiddenPercentage,
         currentImageSize.width,
         currentImageSize.height,
-        paletteParams.maxBackgrounds
+        paletteParams.maxBackgrounds,
+        paletteParams.useSuperpixels,
+        paletteParams.backgroundVarianceScale,
+        superpixelData
       );
+      console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
 
       // Sort and render palette
       analyzedPalette.sort((a, b) => a.lab[0] - b.lab[0]);
@@ -322,7 +334,10 @@ document.addEventListener('DOMContentLoaded', () => {
             paletteParams.minHiddenPercentage,
             currentImageSize.width,
             currentImageSize.height,
-            paletteParams.maxBackgrounds
+            paletteParams.maxBackgrounds,
+            paletteParams.useSuperpixels,
+            paletteParams.backgroundVarianceScale,
+            superpixelData
           );
           console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
 

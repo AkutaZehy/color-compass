@@ -10,12 +10,47 @@
  * @param {number} height - Image height
  * @returns {Array} - Analyzed palette with color information
  */
-export function analyzePalette (pixelData, dominantColors, paletteSize, maxHiddenColors, minHiddenPercentage, width, height, maxBackgrounds = 3) {
+export function analyzePalette (pixelData, dominantColors, paletteSize, maxHiddenColors, minHiddenPercentage, width, height, maxBackgrounds = 3, useSuperpixels = false, backgroundVarianceScale = 1, superpixelData = null) {
+  // Handle different input types
+  let inputData;
+  let weights = null;
+  if (useSuperpixels && superpixelData) {
+    // For superpixel features (array of objects with avgRGB and pixelCount)
+    inputData = new Array(superpixelData.features.length);
+    weights = new Array(superpixelData.features.length);
+
+    for (let i = 0; i < superpixelData.features.length; i++) {
+      const feature = superpixelData.features[i];
+      inputData[i] = {
+        r: feature.avgRGB[0],
+        g: feature.avgRGB[1],
+        b: feature.avgRGB[2]
+      };
+      weights[i] = feature.pixelCount;
+    }
+  } else {
+    // For raw pixel data (Uint8ClampedArray)
+    inputData = new Array(pixelData.length / 4);
+    for (let i = 0; i < pixelData.length; i += 4) {
+      inputData[i / 4] = {
+        r: pixelData[i],
+        g: pixelData[i + 1],
+        b: pixelData[i + 2]
+      };
+    }
+  }
+
+  console.log(superpixelData, "Superpixel data for clustering");
+  console.log(inputData, "Input data for clustering");
+
   // Single stage Kmeans with all required colors
   const totalColors = Math.min(paletteSize, dominantColors.length + maxHiddenColors);
 
-  // Run clustering
-  const result = kmeansClustering(pixelData, dominantColors, 10);
+  // Run clustering with perceptual distance metric
+  const result = kmeansClustering(inputData, dominantColors, 10, {
+    useDeltaE: true,
+    weights: weights
+  });
 
   // Identify hidden colors based on cluster size
   const sortedClusters = result.centroids
@@ -34,13 +69,17 @@ export function analyzePalette (pixelData, dominantColors, paletteSize, maxHidde
     }
   }
 
-  // Extract background colors
+  // Extract background colors with connectivity analysis
   const backgroundColors = extractBackgroundColors(
     pixelData,
     width,
     height,
     result.centroids,
-    maxBackgrounds
+    maxBackgrounds,
+    {
+      useConnectivity: true,
+      backgroundVarianceScale: backgroundVarianceScale
+    }
   );
 
   // Format output with hidden color markers
@@ -48,16 +87,30 @@ export function analyzePalette (pixelData, dominantColors, paletteSize, maxHidde
     result.centroids,
     result.counts,
     backgroundColors,
-    width * height,
+    weights ? weights.reduce((a, b) => a + b, 0) : width * height,
     hiddenColorIndices
   );
 }
 
 // Kmeans clustering implementation
-function kmeansClustering (pixelData, initialCentroids, maxIterations) {
+function kmeansClustering (pixelData, initialCentroids, maxIterations, options = {}) {
+  // Input validation
+  if (!initialCentroids || initialCentroids.length === 0) {
+    throw new Error('No initial centroids provided');
+  }
+
+  // Validate centroids (allow 0,0,0 as valid color)
+  initialCentroids.forEach((centroid, idx) => {
+    if (!centroid || centroid.r === undefined || centroid.g === undefined || centroid.b === undefined) {
+      console.error(`Invalid centroid at index ${idx}:`, centroid);
+      throw new Error(`Invalid centroid at index ${idx}`);
+    }
+  });
+
   let centroids = [...initialCentroids];
-  let labels = new Array(pixelData.length / 4).fill(-1);
+  let labels = new Array(pixelData.length).fill(-1);
   let counts = new Array(centroids.length).fill(0);
+  const weights = options.weights || null;
 
   for (let iter = 0; iter < maxIterations; iter++) {
     // Assignment step
@@ -65,16 +118,21 @@ function kmeansClustering (pixelData, initialCentroids, maxIterations) {
     const newCounts = new Array(centroids.length).fill(0);
     const newSums = centroids.map(() => ({ r: 0, g: 0, b: 0 }));
 
-    for (let i = 0; i < pixelData.length; i += 4) {
-      const r = pixelData[i];
-      const g = pixelData[i + 1];
-      const b = pixelData[i + 2];
+    for (let i = 0; i < pixelData.length; i++) {
+      const pixel = pixelData[i];
+      const r = pixel.r;
+      const g = pixel.g;
+      const b = pixel.b;
 
       // Find nearest centroid
       let minDist = Infinity;
       let bestCluster = -1;
 
       centroids.forEach((centroid, idx) => {
+        if (!centroid || centroid.r === undefined || centroid.g === undefined || centroid.b === undefined) {
+          console.error(`Invalid centroid at index ${idx}:`, centroid);
+          throw new Error(`Invalid centroid at index ${idx}`);
+        }
         const dist = colorDistance(r, g, b, centroid.r, centroid.g, centroid.b);
         if (dist < minDist) {
           minDist = dist;
@@ -88,18 +146,22 @@ function kmeansClustering (pixelData, initialCentroids, maxIterations) {
         labels[i / 4] = bestCluster;
       }
 
-      newCounts[bestCluster]++;
-      newSums[bestCluster].r += r;
-      newSums[bestCluster].g += g;
-      newSums[bestCluster].b += b;
+      const weight = weights ? weights[i] : 1;
+      newCounts[bestCluster] += weight;
+      newSums[bestCluster].r += r * weight;
+      newSums[bestCluster].g += g * weight;
+      newSums[bestCluster].b += b * weight;
     }
 
     // Update centroids
-    centroids = newSums.map((sum, idx) => ({
-      r: newCounts[idx] > 0 ? Math.round(sum.r / newCounts[idx]) : centroids[idx].r,
-      g: newCounts[idx] > 0 ? Math.round(sum.g / newCounts[idx]) : centroids[idx].g,
-      b: newCounts[idx] > 0 ? Math.round(sum.b / newCounts[idx]) : centroids[idx].b
-    }));
+    centroids = newSums.map((sum, idx) => {
+      const fallback = centroids[idx] || { r: 0, g: 0, b: 0 };
+      return {
+        r: newCounts[idx] > 0 ? Math.round(sum.r / newCounts[idx]) : fallback.r,
+        g: newCounts[idx] > 0 ? Math.round(sum.g / newCounts[idx]) : fallback.g,
+        b: newCounts[idx] > 0 ? Math.round(sum.b / newCounts[idx]) : fallback.b
+      };
+    });
 
     counts = newCounts;
 
@@ -113,13 +175,16 @@ function kmeansClustering (pixelData, initialCentroids, maxIterations) {
 
 
 // Background color extraction
-function extractBackgroundColors (pixelData, width, height, centroids, maxBackgrounds = 3) {
+function extractBackgroundColors (pixelData, width, height, centroids, maxBackgrounds = 3, options = {}) {
   // Find largest connected regions (background candidates)
   const backgroundCandidates = findBackgroundRegions(pixelData, width, height, maxBackgrounds);
 
   // Match candidate regions to palette colors
   const backgroundColors = [];
-  const threshold = 20; // Color matching threshold
+  const baseThreshold = 20; // Base color matching threshold
+  const threshold = baseThreshold * (options.backgroundVarianceScale || 1);
+
+  console.log(`Using background color matching threshold: ${threshold} (scale: ${options.backgroundVarianceScale || 1})`);
 
   backgroundCandidates.forEach(candidate => {
     // Find closest palette color
@@ -129,6 +194,7 @@ function extractBackgroundColors (pixelData, width, height, centroids, maxBackgr
 
     if (match >= 0) {
       backgroundColors.push(match);
+    } else {
     }
   });
 

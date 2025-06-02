@@ -201,6 +201,25 @@
                       <span id="superpixelCompactnessValue">10</span>
                     </div>
                     <div class="param-group">
+                      <label for="backgroundVarianceScale"
+                        >背景色匹配阈值
+                        <span class="tooltip"
+                          >?<span class="tooltiptext"
+                            >控制背景色匹配的阈值比例(0.5-10.0)。</span
+                          ></span
+                        >
+                      </label>
+                      <input
+                        type="range"
+                        id="backgroundVarianceScale"
+                        min="0.5"
+                        max="10.0"
+                        value="1.0"
+                        step="0.1"
+                      />
+                      <span id="backgroundVarianceScaleValue">1.0</span>
+                    </div>
+                    <div class="param-group">
                       <label for="maxBackgrounds"
                         >潜在背景色数量
                         <span class="tooltip"

@@ -1,4 +1,4 @@
-import { rgbToLab } from './colorUtils.js';
+
 
 /**
  * SLIC (Simple Linear Iterative Clustering) superpixel algorithm implementation
@@ -10,43 +10,100 @@ import { rgbToLab } from './colorUtils.js';
  * @param {number} compactness - Compactness factor (balance between color and spatial proximity)
  * @returns {Object} - Superpixel data containing labels and features
  */
-export function applySLIC (pixelData, width, height, superpixelCount, compactness) {
-    // Convert RGBA to Lab color space for better perceptual distance
-    const labData = convertRGBtoLab(pixelData, width, height);
+function downsampleImage (pixelData, width, height, maxPixels = 1e5) {
+    // Calculate downsampling ratio to keep total pixels <= maxPixels
+    const ratio = Math.sqrt((width * height) / maxPixels);
+    const newWidth = Math.max(1, Math.floor(width / ratio));
+    const newHeight = Math.max(1, Math.floor(height / ratio));
 
-    // Initialize cluster centers (superpixel seeds)
-    const clusterCenters = initializeClusterCenters(labData, width, height, superpixelCount);
+    const downsampled = new Uint8Array(newWidth * newHeight * 4);
 
-    // Assign pixels to nearest cluster
-    const labels = assignPixelsToClusters(labData, width, height, clusterCenters, compactness);
+    // Max pooling downsampling
+    const xRatio = width / newWidth;
+    const yRatio = height / newHeight;
 
-    // Enforce connectivity and remove small segments
-    const cleanedLabels = enforceConnectivity(labels, width, height);
+    for (let y = 0; y < newHeight; y++) {
+        for (let x = 0; x < newWidth; x++) {
+            const srcX = Math.floor(x * xRatio);
+            const srcY = Math.floor(y * yRatio);
+            const srcEndX = Math.min(width, Math.ceil((x + 1) * xRatio));
+            const srcEndY = Math.min(height, Math.ceil((y + 1) * yRatio));
 
-    console.log(`SLIC completed with ${new Set(cleanedLabels).size} superpixels.`);
-    console.log(cleanedLabels, 'labels');
+            // Find max RGB values in the pooling window
+            let maxR = 0, maxG = 0, maxB = 0;
+            for (let sy = srcY; sy < srcEndY; sy++) {
+                for (let sx = srcX; sx < srcEndX; sx++) {
+                    const idx = (sy * width + sx) * 4;
+                    maxR = Math.max(maxR, pixelData[idx]);
+                    maxG = Math.max(maxG, pixelData[idx + 1]);
+                    maxB = Math.max(maxB, pixelData[idx + 2]);
+                }
+            }
+
+            const dstIdx = (y * newWidth + x) * 4;
+            downsampled[dstIdx] = maxR;
+            downsampled[dstIdx + 1] = maxG;
+            downsampled[dstIdx + 2] = maxB;
+            downsampled[dstIdx + 3] = 255; // Alpha
+        }
+    }
 
     return {
-        labels: cleanedLabels,
-        features: extractSuperpixelFeatures(labData, cleanedLabels, clusterCenters.length)
+        data: downsampled,
+        width: newWidth,
+        height: newHeight
+    };
+}
+
+function upscaleLabels (labels, srcWidth, srcHeight, dstWidth, dstHeight) {
+    const upscaled = new Int32Array(dstWidth * dstHeight);
+    const xRatio = srcWidth / dstWidth;
+    const yRatio = srcHeight / dstHeight;
+
+    for (let y = 0; y < dstHeight; y++) {
+        for (let x = 0; x < dstWidth; x++) {
+            const srcX = Math.floor(x * xRatio);
+            const srcY = Math.floor(y * yRatio);
+            const srcIdx = srcY * srcWidth + srcX;
+            const dstIdx = y * dstWidth + x;
+            upscaled[dstIdx] = labels[srcIdx];
+        }
+    }
+
+    return upscaled;
+}
+
+export function applySLIC (pixelData, width, height, superpixelCount, compactness) {
+    // Downsample large images to improve performance
+    let downsampled = { data: pixelData, width, height };
+    if (width * height > 1e5) {
+        downsampled = downsampleImage(pixelData, width, height);
+    }
+
+    // Initialize cluster centers (superpixel seeds)
+    const clusterCenters = initializeClusterCenters(downsampled.data, downsampled.width, downsampled.height, superpixelCount);
+
+    // Assign pixels to nearest cluster
+    const labels = assignPixelsToClusters(downsampled.data, downsampled.width, downsampled.height, clusterCenters, compactness);
+
+    // Enforce connectivity and remove small segments
+    const cleanedLabels = enforceConnectivity(labels, downsampled.width, downsampled.height);
+
+    // Upscale labels back to original size if downsampled
+    let finalLabels = cleanedLabels;
+    if (downsampled.width !== width || downsampled.height !== height) {
+        finalLabels = upscaleLabels(cleanedLabels, downsampled.width, downsampled.height, width, height);
+    }
+
+    return {
+        labels: finalLabels,
+        features: extractSuperpixelFeatures(pixelData, finalLabels, clusterCenters.length)
     };
 }
 
 // Helper functions
 
-function convertRGBtoLab (rgbData, width, height) {
-    const labData = new Float32Array(width * height * 3);
 
-    for (let i = 0; i < rgbData.length; i += 4) {
-        const [L, a, b] = rgbToLab(rgbData[i], rgbData[i + 1], rgbData[i + 2]);
-        const pixelIdx = i / 4;
-        labData[pixelIdx * 3] = L;
-        labData[pixelIdx * 3 + 1] = a;
-        labData[pixelIdx * 3 + 2] = b;
-    }
-
-    return labData;
-}
 
 function calculateGradient (labData, width, height, x, y) {
     // Calculate gradient in Lab color space
@@ -68,7 +125,7 @@ function calculateGradient (labData, width, height, x, y) {
     return dx * dx + dy * dy; // Gradient magnitude squared
 }
 
-function findLowestGradientNeighbor (labData, width, height, x, y) {
+function findLowestGradientNeighbor (rgbData, width, height, x, y) {
     let minGradient = Infinity;
     let bestX = x;
     let bestY = y;
@@ -80,7 +137,7 @@ function findLowestGradientNeighbor (labData, width, height, x, y) {
             const ny = y + dy;
 
             if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                const gradient = calculateGradient(labData, width, height, nx, ny);
+                const gradient = calculateGradient(rgbData, width, height, nx, ny);
                 if (gradient < minGradient) {
                     minGradient = gradient;
                     bestX = nx;
@@ -90,39 +147,48 @@ function findLowestGradientNeighbor (labData, width, height, x, y) {
         }
     }
 
-    // Get Lab values at best position
+    // Get RGB values at best position
     const idx = bestY * width + bestX;
+    const rgbOffset = idx * 4;
+
+    // Return RGB values instead of LAB
     return {
         x: bestX,
         y: bestY,
-        L: labData[idx * 3],
-        a: labData[idx * 3 + 1],
-        b: labData[idx * 3 + 2]
+        r: rgbData[rgbOffset] || 0,
+        g: rgbData[rgbOffset + 1] || 0,
+        b: rgbData[rgbOffset + 2] || 0
     };
 }
 
-function initializeClusterCenters (labData, width, height, superpixelCount) {
+function initializeClusterCenters (rgbData, width, height, superpixelCount) {
     const clusterCenters = [];
     const step = Math.sqrt((width * height) / superpixelCount);
 
     for (let y = Math.floor(step / 2); y < height; y += step) {
         for (let x = Math.floor(step / 2); x < width; x += step) {
             // Adjust center to lowest gradient position in 3x3 neighborhood
-            const adjustedCenter = findLowestGradientNeighbor(labData, width, height, x, y);
-            clusterCenters.push(adjustedCenter);
+            const adjustedCenter = findLowestGradientNeighbor(rgbData, width, height, x, y);
+            clusterCenters.push({
+                x: adjustedCenter.x,
+                y: adjustedCenter.y,
+                r: adjustedCenter.r,
+                g: adjustedCenter.g,
+                b: adjustedCenter.b
+            });
         }
     }
 
     return clusterCenters;
 }
 
-function updateClusterCenters (labData, width, height, labels, clusterCount) {
+function updateClusterCenters (rgbData, width, height, labels, clusterCount) {
     const centers = new Array(clusterCount);
     const counts = new Array(clusterCount).fill(0);
 
     // Initialize centers
     for (let i = 0; i < clusterCount; i++) {
-        centers[i] = { x: 0, y: 0, L: 0, a: 0, b: 0 };
+        centers[i] = { x: 0, y: 0, r: 0, g: 0, b: 0 };
     }
 
     // Accumulate positions and colors
@@ -132,12 +198,12 @@ function updateClusterCenters (labData, width, height, labels, clusterCount) {
             const label = labels[idx];
 
             if (label >= 0 && label < clusterCount) {
-                const labOffset = idx * 3;
+                const rgbOffset = idx * 4;
                 centers[label].x += x;
                 centers[label].y += y;
-                centers[label].L += labData[labOffset];
-                centers[label].a += labData[labOffset + 1];
-                centers[label].b += labData[labOffset + 2];
+                centers[label].r += rgbData[rgbOffset];
+                centers[label].g += rgbData[rgbOffset + 1];
+                centers[label].b += rgbData[rgbOffset + 2];
                 counts[label]++;
             }
         }
@@ -150,8 +216,8 @@ function updateClusterCenters (labData, width, height, labels, clusterCount) {
             updatedCenters.push({
                 x: centers[i].x / counts[i],
                 y: centers[i].y / counts[i],
-                L: centers[i].L / counts[i],
-                a: centers[i].a / counts[i],
+                r: centers[i].r / counts[i],
+                g: centers[i].g / counts[i],
                 b: centers[i].b / counts[i]
             });
         } else {
@@ -163,7 +229,7 @@ function updateClusterCenters (labData, width, height, labels, clusterCount) {
     return updatedCenters;
 }
 
-function assignPixelsToClusters (labData, width, height, clusterCenters, compactness) {
+function assignPixelsToClusters (downsampledData, width, height, clusterCenters, compactness) {
     const labels = new Int32Array(width * height).fill(-1);
     const distances = new Float32Array(width * height).fill(Infinity);
     const step = Math.sqrt((width * height) / clusterCenters.length);
@@ -181,19 +247,23 @@ function assignPixelsToClusters (labData, width, height, clusterCenters, compact
                     const pixelIdx = y * width + x;
                     const labOffset = pixelIdx * 3;
 
-                    const colorDist = Math.sqrt(
-                        Math.pow(labData[labOffset] - center.L, 2) +
-                        Math.pow(labData[labOffset + 1] - center.a, 2) +
-                        Math.pow(labData[labOffset + 2] - center.b, 2)
-                    );
+                    // 预计算常用值
+                    const dx = x - center.x;
+                    const dy = y - center.y;
 
-                    const spatialDist = Math.sqrt(
-                        Math.pow(x - center.x, 2) +
-                        Math.pow(y - center.y, 2)
-                    );
+                    // 优化距离计算 - 直接在RGB空间计算
+                    const r = downsampledData[pixelIdx * 4];
+                    const g = downsampledData[pixelIdx * 4 + 1];
+                    const b = downsampledData[pixelIdx * 4 + 2];
+                    const colorDist = Math.pow(r - center.r, 2) +
+                        Math.pow(g - center.g, 2) +
+                        Math.pow(b - center.b, 2);
 
-                    const distance = colorDist + (compactness / step) * spatialDist;
+                    const spatialDist = dx * dx + dy * dy; // 使用平方距离避免平方根
 
+                    // 预计算归一化因子
+                    const normalizedFactor = Math.max(10, Math.min(40, compactness)) / (step * step);
+                    const distance = colorDist + normalizedFactor * spatialDist;
                     if (distance < distances[pixelIdx]) {
                         distances[pixelIdx] = distance;
                         labels[pixelIdx] = clusterIdx;
@@ -203,7 +273,7 @@ function assignPixelsToClusters (labData, width, height, clusterCenters, compact
         });
 
         // Update cluster centers
-        const newCenters = updateClusterCenters(labData, width, height, labels, clusterCenters.length);
+        const newCenters = updateClusterCenters(downsampledData, width, height, labels, clusterCenters.length);
         clusterCenters = newCenters.map((center, i) => center || clusterCenters[i]);
     }
 
@@ -294,13 +364,13 @@ function enforceConnectivity (labels, width, height) {
     return cleanedLabels;
 }
 
-function extractSuperpixelFeatures (labData, labels, clusterCount) {
+function extractSuperpixelFeatures (rgbData, labels, clusterCount) {
     // Extract average color and other features for each superpixel
     const features = new Array(clusterCount);
 
     for (let i = 0; i < clusterCount; i++) {
         features[i] = {
-            avgLab: [0, 0, 0],
+            avgRGB: [0, 0, 0],
             pixelCount: 0
         };
     }
@@ -308,23 +378,23 @@ function extractSuperpixelFeatures (labData, labels, clusterCount) {
     for (let i = 0; i < labels.length; i++) {
         const label = labels[i];
         if (label >= 0) {
-            features[label].avgLab[0] += labData[i * 3];
-            features[label].avgLab[1] += labData[i * 3 + 1];
-            features[label].avgLab[2] += labData[i * 3 + 2];
+            features[label].avgRGB[0] += rgbData[i * 4];
+            features[label].avgRGB[1] += rgbData[i * 4 + 1];
+            features[label].avgRGB[2] += rgbData[i * 4 + 2];
             features[label].pixelCount++;
         }
     }
 
-    // Normalize averages
+    // Normalize averages and filter out empty clusters
+    const filteredFeatures = [];
     features.forEach(feat => {
         if (feat.pixelCount > 0) {
-            feat.avgLab[0] /= feat.pixelCount;
-            feat.avgLab[1] /= feat.pixelCount;
-            feat.avgLab[2] /= feat.pixelCount;
+            feat.avgRGB[0] /= feat.pixelCount;
+            feat.avgRGB[1] /= feat.pixelCount;
+            feat.avgRGB[2] /= feat.pixelCount;
+            filteredFeatures.push(feat);
         }
     });
 
-    return features;
+    return filteredFeatures;
 }
-
-// Additional helper functions would be implemented here...
