@@ -269,7 +269,8 @@ function assignPixelsToClusters (downsampledData, width, height, clusterCenters,
                     const spatialDist = dx * dx + dy * dy; // 使用平方距离避免平方根
 
                     // 预计算归一化因子
-                    const normalizedFactor = Math.max(10, Math.min(40, compactness)) / (step * step);
+                    // 使用完整的compactness范围(1-50)，避免硬编码限制
+                    const normalizedFactor = compactness / (step * step);
                     const distance = colorDist + normalizedFactor * spatialDist;
                     if (distance < distances[pixelIdx]) {
                         distances[pixelIdx] = distance;
