@@ -12,10 +12,13 @@ export function loadImageAndDisplay (file, imgElement) {
     if (!file || !(file instanceof File)) {
       console.error("Invalid file provided.");
       imgElement.style.display = 'none';
-      imgElement.src = '#';
       reject(new Error("Invalid file input."));
       return;
     }
+
+    // Clear previous event handlers to prevent infinite error loops
+    imgElement.onload = null;
+    imgElement.onerror = null;
 
     const reader = new FileReader();
 
@@ -25,16 +28,14 @@ export function loadImageAndDisplay (file, imgElement) {
       imgElement.onload = function () {
         console.log(`Image loaded successfully: ${imgElement.naturalWidth}x${imgElement.naturalHeight}`);
         imgElement.style.display = 'block';
-        resolve(imgElement); // Resolve with the loaded image element
+        resolve(imgElement);
       };
 
       imgElement.onerror = function () {
-        // Only log error if src is a valid data URL (not '#' placeholder)
-        if (imgElement.src && imgElement.src !== '' && imgElement.src !== window.location.href + '#') {
-          console.error("Error loading image data URL into img element.");
-        }
+        console.error("Error loading image data URL into img element.");
         imgElement.style.display = 'none';
-        imgElement.src = '';
+        imgElement.onload = null;
+        imgElement.onerror = null;
         reject(new Error("Failed to load image data."));
       };
     };
@@ -42,14 +43,12 @@ export function loadImageAndDisplay (file, imgElement) {
     reader.onerror = function (e) {
       console.error("Error reading file with FileReader:", e);
       imgElement.style.display = 'none';
-      imgElement.src = '#';
       reject(e);
     };
 
     reader.readAsDataURL(file);
 
     imgElement.style.display = 'none';
-    imgElement.src = '#';
   });
 }
 

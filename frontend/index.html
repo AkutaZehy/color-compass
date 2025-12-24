@@ -81,9 +81,7 @@
                   <div class="param-group">
                     <label for="dominantColors"
                       >色板颜色数量
-                      <span class="tooltip"
-                        >?<span class="tooltiptext"
-                          >控制色板中颜色的数量。</span
+                      <span class="tooltip"><span class="tooltiptext">控制色板中颜色的数量。</span
                         ></span
                       >
                     </label>
@@ -103,9 +101,7 @@
                     <div class="param-group">
                       <label for="paletteSize"
                         >最大颜色数量
-                        <span class="tooltip"
-                          >?<span class="tooltiptext"
-                            >控制最终色板中最多显示多少种颜色。增加该值会使色板被允许包含更多的颜色，配合色板颜色数量使用。</span
+                        <span class="tooltip"><span class="tooltiptext">控制最终色板中最多显示多少种颜色。增加该值会使色板被允许包含更多的颜色，配合色板颜色数量使用。</span
                           ></span
                         >
                       </label>
@@ -122,9 +118,7 @@
                     <div class="param-group">
                       <label for="maxHiddenColors"
                         >藏色最大数量
-                        <span class="tooltip"
-                          >?<span class="tooltiptext"
-                            >控制算法最多识别多少种藏色(不常见但重要的颜色)。</span
+                        <span class="tooltip"><span class="tooltiptext">控制算法最多识别多少种藏色(不常见但重要的颜色)。</span
                           ></span
                         >
                       </label>
@@ -141,9 +135,7 @@
                     <div class="param-group">
                       <label for="minHiddenPercentage"
                         >藏色最小占比
-                        <span class="tooltip"
-                          >?<span class="tooltiptext"
-                            >控制识别藏色的最小像素占比阈值。</span
+                        <span class="tooltip"><span class="tooltiptext">控制识别藏色的最小像素占比阈值。</span
                           ></span
                         >
                       </label>
@@ -160,9 +152,7 @@
                     <div class="param-group">
                       <label for="superpixelCount"
                         >超像素数量
-                        <span class="tooltip"
-                          >?<span class="tooltiptext"
-                            >控制SLIC算法生成的超像素区域数量。提高该值可以一定程度改善色板颜色的丰富程度。警告：提高该值会显著延长生成色板所需的时间。</span
+                        <span class="tooltip"><span class="tooltiptext">控制SLIC算法生成的超像素区域数量。提高该值可以一定程度改善色板颜色的丰富程度。警告：提高该值会显著延长生成色板所需的时间。</span
                           ></span
                         >
                       </label>
@@ -179,9 +169,7 @@
                     <div class="param-group">
                       <label for="superpixelCompactness"
                         >超像素紧密度
-                        <span class="tooltip"
-                          >?<span class="tooltiptext"
-                            >控制SLIC超像素的形状规则程度。提高该值可以一定程度抑制色板中相似颜色的输出。</span
+                        <span class="tooltip"><span class="tooltiptext">控制SLIC超像素的形状规则程度。提高该值可以一定程度抑制色板中相似颜色的输出。</span
                           ></span
                         >
                       </label>
@@ -198,9 +186,7 @@
                     <div class="param-group">
                       <label for="backgroundVarianceScale"
                         >背景色匹配系数
-                        <span class="tooltip"
-                          >?<span class="tooltiptext"
-                            >控制背景色匹配的阈值比例。提高该值可以提高背景容忍近邻颜色的程度。</span
+                        <span class="tooltip"><span class="tooltiptext">控制背景色匹配的阈值比例。提高该值可以提高背景容忍近邻颜色的程度。</span
                           ></span
                         >
                       </label>
@@ -217,9 +203,7 @@
                     <div class="param-group">
                       <label for="maxBackgrounds"
                         >潜在背景色数量
-                        <span class="tooltip"
-                          >?<span class="tooltiptext"
-                            >控制算法最多识别多少种背景色。</span
+                        <span class="tooltip"><span class="tooltiptext">控制算法最多识别多少种背景色。</span
                           ></span
                         >
                       </label>
@@ -236,9 +220,7 @@
                     <div class="param-group">
                       <label for="useDeltaE"
                         >使用ΔE色差距离
-                        <span class="tooltip"
-                          >?<span class="tooltiptext"
-                            >启用ΔE色差距离计算，更符合人眼感知但计算较慢。</span
+                        <span class="tooltip"><span class="tooltiptext">启用ΔE色差距离计算，更符合人眼感知但计算较慢。</span
                           ></span
                         >
                       </label>
@@ -277,9 +259,7 @@
         <div class="right-panel">
           <div class="color-analysis-section">
             <h2>
-              色彩倾向分析<span class="tooltip"
-                >?<span class="tooltiptext"
-                  >通常来说，RGB 到 CIELAB 不可以直接转换。此处假定了输入是
+              色彩倾向分析<span class="tooltip"><span class="tooltiptext">通常来说，RGB 到 CIELAB 不可以直接转换。此处假定了输入是
                   sRGB 空间，以 D65
                   标准光源为参考白点，使用标准伽马矫正公式转为线性
                   RGB，使用标准矩阵变换转为 CIE XYZ，使用 CIE 标准公式转为
@@ -325,23 +305,23 @@
 
             <!-- 高级可视化图表 - 2x2网格布局 -->
               <div class="advanced-viz-section" id="advancedVizSection">
-                <h2>高级色彩分析</h2>
+                <h2>高级色彩分析<span class="tooltip"><span class="tooltiptext">使用极坐标和密度分布展示颜色的色相、饱和度、明度以及在CIELAB色彩空间中的分布特征，帮助深入理解图像的色彩构成。</span></span></h2>
                 <div class="advanced-charts-grid four-charts">
                   <div class="chart-container">
                     <canvas id="huePolar" width="400" height="400" role="img" aria-label="色相极坐标分布图，显示色相在圆周上的分布密度"></canvas>
-                    <p>色相极坐标分布</p>
+                    <p>色相极坐标分布<span class="tooltip"><span class="tooltiptext">以极坐标形式展示色相(Hue)在360度色环上的分布密度。圆心到边缘表示色相出现的频率，边缘越丰满表示该色相在图像中出现越多。</span></span></p>
                   </div>
                   <div class="chart-container">
                     <canvas id="labScatter" width="400" height="400" role="img" aria-label="Lab a*b* 散点分布图，横轴为a*红绿轴，纵轴为b*黄蓝轴"></canvas>
-                    <p>Lab a*b* 分布</p>
+                    <p>Lab a*b* 分布<span class="tooltip"><span class="tooltiptext">在CIELAB色彩空间的a*(红绿轴)和b*(黄蓝轴)平面上的颜色散点分布。中心(0,0)为中性灰色，向四周扩展表示颜色饱和度增加。</span></span></p>
                   </div>
                   <div class="chart-container">
                     <canvas id="distanceHeatmap" width="400" height="400" role="img" aria-label="色彩距离热力图，显示每个区域到最近色板颜色的色差"></canvas>
-                    <p>色彩距离热力图</p>
+                    <p>色彩距离热力图<span class="tooltip"><span class="tooltiptext">展示图像各区域与提取的色板之间的色彩差异程度。绿色表示该区域颜色与色板匹配良好，红色表示差异较大，有助于评估色板的代表性。</span></span></p>
                   </div>
                   <div class="chart-container">
                     <canvas id="labDensity" width="400" height="400" role="img" aria-label="Lab色彩密度分布图，显示a*b*平面的颜色密度"></canvas>
-                    <p>Lab密度分布</p>
+                    <p>Lab密度分布<span class="tooltip"><span class="tooltiptext">在a*b*平面上的颜色密度热力图。颜色越亮表示该位置聚集了越多像素，直观展示图像的主要色彩分布区域。</span></span></p>
                   </div>
                 </div>
               </div>
