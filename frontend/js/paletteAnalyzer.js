@@ -239,54 +239,116 @@ function initializeCentroids (pixels, k) {
 }
 
 function findBackgroundRegions (pixelData, width, height, maxBackgrounds = 3) {
-  // Simple implementation: find large uniform regions
+  // Improved implementation: adaptive sampling and connectivity analysis
   const candidates = [];
-  const gridSize = 10; // Check every 10th pixel
 
-  for (let y = 0; y < height; y += gridSize) {
-    for (let x = 0; x < width; x += gridSize) {
+  // Adaptive grid size based on image size
+  const gridSize = Math.max(5, Math.min(20, Math.floor(Math.sqrt(width * height) / 100)));
+
+  // Sample from edges (more likely to be background)
+  const edgeSamples = Math.floor(gridSize * 2);
+
+  // Sample from edges
+  for (let i = 0; i < edgeSamples; i++) {
+    // Top edge
+    const xTop = Math.floor(Math.random() * width);
+    const idxTop = (0 * width + xTop) * 4;
+    candidates.push({
+      r: pixelData[idxTop],
+      g: pixelData[idxTop + 1],
+      b: pixelData[idxTop + 2],
+      isEdge: true
+    });
+
+    // Bottom edge
+    const xBottom = Math.floor(Math.random() * width);
+    const idxBottom = ((height - 1) * width + xBottom) * 4;
+    candidates.push({
+      r: pixelData[idxBottom],
+      g: pixelData[idxBottom + 1],
+      b: pixelData[idxBottom + 2],
+      isEdge: true
+    });
+
+    // Left edge
+    const yLeft = Math.floor(Math.random() * height);
+    const idxLeft = (yLeft * width + 0) * 4;
+    candidates.push({
+      r: pixelData[idxLeft],
+      g: pixelData[idxLeft + 1],
+      b: pixelData[idxLeft + 2],
+      isEdge: true
+    });
+
+    // Right edge
+    const yRight = Math.floor(Math.random() * height);
+    const idxRight = (yRight * width + (width - 1)) * 4;
+    candidates.push({
+      r: pixelData[idxRight],
+      g: pixelData[idxRight + 1],
+      b: pixelData[idxRight + 2],
+      isEdge: true
+    });
+  }
+
+  // Sample from grid (interior)
+  for (let y = gridSize; y < height - gridSize; y += gridSize) {
+    for (let x = gridSize; x < width - gridSize; x += gridSize) {
       const idx = (y * width + x) * 4;
       candidates.push({
         r: pixelData[idx],
         g: pixelData[idx + 1],
-        b: pixelData[idx + 2]
+        b: pixelData[idx + 2],
+        isEdge: false
       });
     }
   }
 
-  // Group similar colors
-  return clusterSimilarColors(candidates, 10, maxBackgrounds);
+  // Group similar colors with edge priority
+  return clusterSimilarColors(candidates, 15, maxBackgrounds);
 }
 
 function clusterSimilarColors (colors, threshold, maxBackgrounds = 3) {
-  // Simple color clustering
+  // Improved color clustering with edge priority
   const clusters = [];
 
   colors.forEach(color => {
     let found = false;
 
     for (const cluster of clusters) {
-      const centroid = cluster[0];
+      const centroid = cluster.centroid;
       if (colorDistance(
         color.r, color.g, color.b,
         centroid.r, centroid.g, centroid.b
       ) < threshold) {
-        cluster.push(color);
+        cluster.colors.push(color);
+        cluster.edgeCount += color.isEdge ? 1 : 0;
         found = true;
         break;
       }
     }
 
     if (!found) {
-      clusters.push([color]);
+      clusters.push({
+        centroid: color,
+        colors: [color],
+        edgeCount: color.isEdge ? 1 : 0
+      });
     }
   });
 
-  // Return largest clusters
+  // Sort by edge count (edge colors more likely to be background) then by size
   return clusters
-    .sort((a, b) => b.length - a.length)
+    .sort((a, b) => {
+      // First by edge count (descending)
+      if (b.edgeCount !== a.edgeCount) {
+        return b.edgeCount - a.edgeCount;
+      }
+      // Then by cluster size (descending)
+      return b.colors.length - a.colors.length;
+    })
     .slice(0, maxBackgrounds)
-    .map(cluster => cluster[0]);
+    .map(cluster => cluster.centroid);
 }
 
 function sampleArray (arr, size) {
