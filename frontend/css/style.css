@@ -455,41 +455,46 @@ button:focus {
 .tooltip {
   position: relative;
   display: inline-block;
+  width: 16px;
+  height: 16px;
+  background: #555;
+  color: white;
+  border-radius: 50%;
+  text-align: center;
+  font-size: 12px;
+  line-height: 16px;
   cursor: help;
   margin-left: 5px;
+  transition: background-color 0.2s ease;
 }
 
-.tooltip > span {
-  display: inline-block;
-  width: 18px;
-  height: 18px;
-  line-height: 18px;
-  text-align: center;
-  background: #4a4a6a;
-  border-radius: 50%;
-  font-size: 0.8em;
-  color: #b0b0c0;
+.tooltip:hover {
+  background: #666;
 }
 
 .tooltiptext {
   visibility: hidden;
-  width: 250px;
-  background: #1a1a2e;
-  color: #b0b0c0;
+  width: 500px;
+  background-color: #333;
+  color: #fff;
   text-align: left;
-  border-radius: 8px;
-  padding: 12px;
-  position: absolute;
-  z-index: 1000;
-  bottom: 125%;
+  border-radius: 4px;
+  padding: 8px;
+  position: fixed;
+  /* 改为固定定位 */
+  z-index: 100;
+  top: 50%;
+  /* 屏幕中央 */
   left: 50%;
-  margin-left: -125px;
+  /* 屏幕中央 */
+  transform: translate(-50%, -50%);
+  /* 居中对齐 */
   opacity: 0;
-  transition: opacity 0.3s;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-  font-size: 0.8em;
+  transition: opacity 0.3s, visibility 0.3s;
+  font-size: 1.5em;
   line-height: 1.4;
-  pointer-events: none;
+  border: 1px solid #444;
+  margin-bottom: 5px;
 }
 
 .tooltip:hover .tooltiptext {
@@ -497,15 +502,12 @@ button:focus {
   opacity: 1;
 }
 
-.tooltiptext::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  margin-left: -5px;
-  border-width: 5px;
-  border-style: solid;
-  border-color: #1a1a2e transparent transparent transparent;
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .tooltiptext {
+    width: 70%;
+    font-size: 15px;
+  }
 }
 
 /* Advanced Params Toggle */
