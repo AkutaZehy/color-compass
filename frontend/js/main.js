@@ -9,6 +9,7 @@ import { applySLIC } from './slic.js';
 import { drawPalette, exportPaletteAsImage } from './paletteRenderer.js'; // Import export function
 import { calculateColorStats } from './colorStats.js';
 import { drawHistogram, drawLabScatterPlotRevised } from './visualization2D.js';
+import { drawHuePolarChart, drawHsvSquareChart, drawColorDistanceHeatmap, drawLabDensityChart } from './visualizationAdvanced.js';
 import { setupSphereScene, disposeScene, exportSphereAsImage } from './sphereRenderer3D.js'; // Import setup, dispose, and export function
 import { saveTextFile, saveDataUrlAsFile } from './fileSaver.js'; // Import file saver utilities
 import { rgbToHex } from './colorUtils.js'; // Make sure this is imported
@@ -408,7 +409,10 @@ document.addEventListener('DOMContentLoaded', () => {
           // --- Step 4: Calculate Stats and Draw 2D Visualizations ---
           console.log("Calculating color stats and drawing 2D visualizations...");
 
-          const colorStats = calculateColorStats(pixelData, width, height);
+          // Calculate stats once with sampling for both basic and advanced visualizations
+          // Use sampleFactor=10 for good balance between accuracy and performance
+          const sampleFactor = 10;
+          const colorStats = calculateColorStats(pixelData, width, height, sampleFactor);
 
           if (colorStats) {
             // Display stats summary
@@ -418,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             labStatsParagraph.textContent =
               `平均 Lab: L*=${colorStats.lab.avg[0].toFixed(3)}, a*=${colorStats.lab.avg[1].toFixed(3)}, b*=${colorStats.lab.avg[2].toFixed(3)} ` +
-              `| 标准差: L*=${colorStats.lab.stdDev[0].toFixed(3)}, a*=${colorStats.lab.stdDev[1].toFixed(3)}, b*=${colorStats.lab.stdDev[2].toFixed(3)}`; // Corrected b* stdDev index
+              `| 标准差: L*=${colorStats.lab.stdDev[0].toFixed(3)}, a*=${colorStats.lab.stdDev[1].toFixed(3)}, b*=${colorStats.lab.stdDev[2].toFixed(3)}`;
 
             // Draw Histograms
             const binCount = 60; // Number of bars in histogram
@@ -433,6 +437,36 @@ document.addEventListener('DOMContentLoaded', () => {
             // Draw Lab a*b* Scatter Plot
             // Sample factor 100 means process every 100th pixel
             drawLabScatterPlotRevised(labScatterCanvas, pixelData, width, height, 100);
+
+
+            // Draw Advanced Visualizations using the same sampled data
+            console.log("Drawing advanced visualizations...");
+
+            // Get canvas elements
+            const huePolarCanvas = document.getElementById('huePolar');
+            const hsvSquareCanvas = document.getElementById('hsvSquare');
+            const distanceHeatmapCanvas = document.getElementById('distanceHeatmap');
+            const labDensityCanvas = document.getElementById('labDensity');
+
+            // Draw Hue Polar Chart
+            if (huePolarCanvas) {
+              drawHuePolarChart(huePolarCanvas, colorStats.rawValues.h, '色相极坐标分布');
+            }
+
+            // Draw HSV Square Chart
+            if (hsvSquareCanvas) {
+              drawHsvSquareChart(hsvSquareCanvas, colorStats.rawValues, 'HSV分布图');
+            }
+
+            // Draw Color Distance Heatmap
+            if (distanceHeatmapCanvas && analyzedPalette) {
+              drawColorDistanceHeatmap(distanceHeatmapCanvas, analyzedPalette, pixelData, width, height, '色彩距离热力图');
+            }
+
+            // Draw Lab Density Chart
+            if (labDensityCanvas) {
+              drawLabDensityChart(labDensityCanvas, colorStats.values, 'Lab密度分布');
+            }
 
 
             // Show the analysis section
