@@ -1,5 +1,6 @@
 // frontend/js/paletteRenderer.js
 import { rgbToHex } from './colorUtils.js'; // Import the function
+import { t } from './i18n.js'; // Import i18n module
 
 /**
  * Draws the color palette onto a canvas element.
@@ -71,10 +72,10 @@ export function drawPalette (palette, canvasElement, totalPixels) {
 
     if (color.isBackground) {
       ctx.fillStyle = '#00ff00';
-      ctx.fillText("背景", currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap);
+      ctx.fillText(t('palette.tags.background'), currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap);
     } else if (color.isHidden) {
       ctx.fillStyle = '#ffff00';
-      ctx.fillText("特色", currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap);
+      ctx.fillText(t('palette.tags.featured'), currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap);
     }
 
     currentX += fixedSwatchWidth + swatchGap;
@@ -95,7 +96,7 @@ export function drawPalette (palette, canvasElement, totalPixels) {
 export function exportPaletteAsImage (canvasElement, filename = 'color_palette.png') { // Export the function
   if (!canvasElement || canvasElement.width === 0 || canvasElement.height === 0) {
     console.error("Cannot export empty or non-existent palette canvas.");
-    alert("调色板未生成，无法导出图片。");
+    alert(t('errors.noPalette'));
     return null;
   }
 
@@ -105,7 +106,7 @@ export function exportPaletteAsImage (canvasElement, filename = 'color_palette.p
     return dataUrl; // Return Data URL so main.js can use fileSaver
   } catch (e) {
     console.error("Error getting data URL from palette canvas:", e);
-    alert("导出调色板图片失败。");
+    alert(t('errors.paletteExportFailed'));
     return null;
   }
 }

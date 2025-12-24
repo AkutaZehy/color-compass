@@ -9,9 +9,11 @@ import { applySLIC } from './slic.js';
 import { drawPalette, exportPaletteAsImage } from './paletteRenderer.js'; // Import export function
 import { calculateColorStats } from './colorStats.js';
 import { drawHistogram, drawLabScatterPlotRevised } from './visualization2D.js';
+import { drawHuePolarChart, drawHsvSquareChart, drawColorDistanceHeatmap, drawLabDensityChart } from './visualizationAdvanced.js';
 import { setupSphereScene, disposeScene, exportSphereAsImage } from './sphereRenderer3D.js'; // Import setup, dispose, and export function
 import { saveTextFile, saveDataUrlAsFile } from './fileSaver.js'; // Import file saver utilities
 import { rgbToHex } from './colorUtils.js'; // Make sure this is imported
+import { t, initI18n } from './i18n.js'; // Import i18n module
 
 
 // --- State Variables ---
@@ -25,7 +27,43 @@ let currentImageSize = { width: 0, height: 0 }; // Stores the loaded image dimen
 let currentPixelData = null; // Store pixel data to allow re-generating palette/3D from controls
 
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Initialize i18n module
+  await initI18n();
+
+  // Language switcher functionality
+  const langZH = document.getElementById('langZH');
+  const langEN = document.getElementById('langEN');
+
+  if (langZH && langEN) {
+    const { loadLocale, getLocale } = await import('./i18n.js');
+
+    // Update button states
+    function updateLangButtons (locale) {
+      if (locale === 'zh-CN') {
+        langZH.classList.add('active');
+        langEN.classList.remove('active');
+      } else {
+        langEN.classList.add('active');
+        langZH.classList.remove('active');
+      }
+    }
+
+    // Add click handlers
+    langZH.addEventListener('click', async () => {
+      await loadLocale('zh-CN');
+      updateLangButtons('zh-CN');
+    });
+
+    langEN.addEventListener('click', async () => {
+      await loadLocale('en-US');
+      updateLangButtons('en-US');
+    });
+
+    // Initialize button states based on current locale
+    updateLangButtons(getLocale());
+  }
+
   console.log("DOM fully loaded and parsed.");
 
   // Dynamic version info from GitHub
@@ -36,38 +74,42 @@ document.addEventListener('DOMContentLoaded', () => {
       if (footer) {
         const versionSpan = document.createElement('span');
         versionSpan.className = 'git-version';
-        versionSpan.textContent = `Git版本: ${data.sha.substring(0, 7)}`;
+        versionSpan.textContent = `Last Commit: ${data.sha.substring(0, 7)}`;
         footer.appendChild(versionSpan);
       }
     })
-    .catch(e => console.log('版本信息获取失败:', e));
+    .catch(e => console.log(t('version.fetchFailed'), e));
 
   // --- Palette Parameters with Default Values ---
   const paletteParams = {
     // 主参数
-    paletteSize: 25, // 总色板颜色数量
+    paletteSize: 20, // 总色板颜色数量 (与界面默认值一致)
     // 主色参数
-    dominantColors: 8, // 主色数量(1-3)
-    // 藏色参数  
-    maxHiddenColors: 3, // 藏色最大数量
+    dominantColors: 8, // 主色数量 (界面范围2-20)
+    // 藏色参数
+    maxHiddenColors: 2, // 藏色最大数量 (与界面默认值一致)
     minHiddenPercentage: 0.01, // 藏色最小占比阈值
     // SLIC参数
     superpixelCount: 200, // 超像素数量
     superpixelCompactness: 10, // 超像素紧密度
     // 背景色参数
-    maxBackgrounds: 2, // 最大背景色数量
+    maxBackgrounds: 3, // 最大背景色数量 (与界面默认值一致)
     backgroundVarianceScale: 1, // 背景色方差扩展系数
-    useSuperpixels: true // 是否使用SLIC超像素预处理 
+    useSuperpixels: true, // 是否使用SLIC超像素预处理
+    useDeltaE: false // 是否使用ΔE色差距离 (新增参数)
   };
 
   // --- Get HTML Elements ---
   const imageInput = document.getElementById('imageInput'); // File input
   const uploadArea = document.getElementById('uploadArea'); // Drag and drop area
   const uploadedImage = document.getElementById('uploadedImage'); // Image display
+  const imageDisplay = document.getElementById('imageDisplay'); // Image display container
+  const removeImageBtn = document.getElementById('removeImageBtn'); // Remove button
   const hiddenCanvas = document.getElementById('hiddenCanvas'); // Hidden canvas for pixel data
   const paletteCanvas = document.getElementById('paletteCanvas'); // Palette canvas
   const reRenderPaletteBtn = document.getElementById('reRenderPaletteBtn'); // Re-render button
   const toggleAdvancedBtn = document.getElementById('toggleAdvancedBtn'); // Toggle advanced params
+  const resetParamsBtn = document.getElementById('resetParamsBtn'); // Reset parameters button
 
   // Parameter controls
   const paletteSizeInput = document.getElementById('paletteSize');
@@ -78,12 +120,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const superpixelCompactnessInput = document.getElementById('superpixelCompactness');
   const maxBackgroundsInput = document.getElementById('maxBackgrounds');
   const backgroundVarianceScaleInput = document.getElementById('backgroundVarianceScale');
+  const useDeltaEInput = document.getElementById('useDeltaE');
 
   // Parameter value displays
   const paletteSizeValue = document.getElementById('paletteSizeValue');
   const dominantColorsValue = document.getElementById('dominantColorsValue');
+  const maxHiddenColorsValue = document.getElementById('maxHiddenColorsValue');
+  const minHiddenPercentageValue = document.getElementById('minHiddenPercentageValue');
+  const superpixelCountValue = document.getElementById('superpixelCountValue');
+  const superpixelCompactnessValue = document.getElementById('superpixelCompactnessValue');
   const maxBackgroundsValue = document.getElementById('maxBackgroundsValue');
   const backgroundVarianceScaleValue = document.getElementById('backgroundVarianceScaleValue');
+  const useDeltaEValue = document.getElementById('useDeltaEValue');
 
   // Initialize parameter controls
   function initParamControls () {
@@ -96,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     superpixelCompactnessInput.value = paletteParams.superpixelCompactness;
     maxBackgroundsInput.value = paletteParams.maxBackgrounds;
     backgroundVarianceScaleInput.value = paletteParams.backgroundVarianceScale;
+    useDeltaEInput.checked = paletteParams.useDeltaE;
 
     // Update displayed values
     paletteSizeValue.textContent = paletteParams.paletteSize;
@@ -106,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness.toFixed(1);
     maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
     backgroundVarianceScaleValue.textContent = paletteParams.backgroundVarianceScale.toFixed(1);
+    useDeltaEValue.textContent = paletteParams.useDeltaE ? t('palette.labels.deltaEOn') : t('palette.labels.deltaEOff');
 
     // Add event listeners
     paletteSizeInput.addEventListener('input', updateParamsFromControls);
@@ -116,13 +166,28 @@ document.addEventListener('DOMContentLoaded', () => {
     superpixelCompactnessInput.addEventListener('input', updateParamsFromControls);
     maxBackgroundsInput.addEventListener('input', updateParamsFromControls);
     backgroundVarianceScaleInput.addEventListener('input', updateParamsFromControls);
+    useDeltaEInput.addEventListener('change', updateParamsFromControls);
 
     // Toggle advanced params
     toggleAdvancedBtn.addEventListener('click', () => {
       const advancedContent = document.querySelector('.advanced-content');
       const isHidden = advancedContent.style.display === 'none';
       advancedContent.style.display = isHidden ? 'block' : 'none';
-      toggleAdvancedBtn.textContent = isHidden ? '隐藏高级参数' : '显示高级参数';
+      toggleAdvancedBtn.textContent = isHidden ? t('palette.hideAdvanced') : t('palette.showAdvanced');
+    });
+
+    // Reset parameters
+    resetParamsBtn.addEventListener('click', resetParamsToDefaults);
+
+    // Remove image button
+    removeImageBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevent triggering file input
+      resetToInitialState();
+    });
+
+    // Click on uploaded image to reselect
+    uploadedImage.addEventListener('click', () => {
+      imageInput.click();
     });
   }
 
@@ -136,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     paletteParams.superpixelCompactness = parseFloat(superpixelCompactnessInput.value);
     paletteParams.maxBackgrounds = parseInt(maxBackgroundsInput.value);
     paletteParams.backgroundVarianceScale = parseFloat(backgroundVarianceScaleInput.value);
+    paletteParams.useDeltaE = useDeltaEInput.checked;
 
     // Update displayed values
     paletteSizeValue.textContent = paletteParams.paletteSize;
@@ -146,6 +212,43 @@ document.addEventListener('DOMContentLoaded', () => {
     superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness.toFixed(1);
     maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
     backgroundVarianceScaleValue.textContent = paletteParams.backgroundVarianceScale.toFixed(1);
+    useDeltaEValue.textContent = paletteParams.useDeltaE ? t('palette.labels.deltaEOn') : t('palette.labels.deltaEOff');
+  }
+
+  // Reset parameters to defaults
+  function resetParamsToDefaults () {
+    const defaultParams = {
+      paletteSize: 20,
+      dominantColors: 8,
+      maxHiddenColors: 2,
+      minHiddenPercentage: 0.01,
+      superpixelCount: 200,
+      superpixelCompactness: 10,
+      maxBackgrounds: 3,
+      backgroundVarianceScale: 1,
+      useSuperpixels: true,
+      useDeltaE: false
+    };
+
+    // Update paletteParams
+    Object.assign(paletteParams, defaultParams);
+
+    // Update UI controls
+    paletteSizeInput.value = paletteParams.paletteSize;
+    dominantColorsInput.value = paletteParams.dominantColors;
+    maxHiddenColorsInput.value = paletteParams.maxHiddenColors;
+    minHiddenPercentageInput.value = paletteParams.minHiddenPercentage;
+    superpixelCountInput.value = paletteParams.superpixelCount;
+    superpixelCompactnessInput.value = paletteParams.superpixelCompactness;
+    maxBackgroundsInput.value = paletteParams.maxBackgrounds;
+    backgroundVarianceScaleInput.value = paletteParams.backgroundVarianceScale;
+    useDeltaEInput.checked = paletteParams.useDeltaE;
+
+    // Update displayed values
+    updateParamsFromControls();
+
+    console.log('Parameters reset to defaults');
+    alert(t('params.reset'));
   }
 
   // Initialize controls
@@ -264,17 +367,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Basic file/blob validation
     if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
       console.error("Invalid input: Provided object is not a valid File or Blob.", file);
-      alert("无效的文件或图片数据。");
+      alert(t('errors.invalidFile'));
       return;
     }
     if (!file.type.startsWith('image/')) {
       console.error("Invalid input: Provided file is not an image type.", file.type);
-      alert("请选择或粘贴图片文件。");
+      alert(t('errors.notImage'));
       return;
     }
     if (file.size === 0) {
       console.warn("Provided file is empty.");
-      alert("文件内容为空。");
+      alert(t('errors.emptyFile'));
       return;
     }
 
@@ -291,16 +394,27 @@ document.addEventListener('DOMContentLoaded', () => {
     loadImageAndDisplay(file, uploadedImage)
       .then(loadedImgElement => {
         console.log("Image loading and display successful. Now getting pixel data...");
-        document.querySelector('.dashboard-container').style.display = 'flex';
+
+        // Hide upload area, show image
+        document.querySelector('.upload-area').classList.add('hidden');
+
+        // Show image and display container
+        uploadedImage.style.display = 'block';
+        imageDisplay.classList.add('has-image');
+
+        document.querySelector('.dashboard-container').classList.add('visible');
 
         // Store image size
         currentImageSize = { width: loadedImgElement.naturalWidth, height: loadedImgElement.naturalHeight };
 
         // --- Step 2: Get Pixel Data ---
         const pixelData = getCanvasPixelData(loadedImgElement, hiddenCanvas);
-        const width = currentImageSize.width;
+        // Get actual dimensions (may be downsampled for large images)
+        const actualWidth = hiddenCanvas.width;
+        const actualHeight = hiddenCanvas.height;
+        const width = currentImageSize.width; // Original dimensions for reference
         const height = currentImageSize.height;
-        const totalPixels = width * height;
+        const totalPixels = actualWidth * actualHeight;
 
         if (pixelData && totalPixels > 0) {
           console.log(`Successfully retrieved pixel data: ${pixelData.length} bytes for ${width}x${height} image.`);
@@ -337,7 +451,8 @@ document.addEventListener('DOMContentLoaded', () => {
             paletteParams.maxBackgrounds,
             paletteParams.useSuperpixels,
             paletteParams.backgroundVarianceScale,
-            superpixelData
+            superpixelData,
+            paletteParams.useDeltaE
           );
           console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
 
@@ -355,17 +470,20 @@ document.addEventListener('DOMContentLoaded', () => {
           // --- Step 4: Calculate Stats and Draw 2D Visualizations ---
           console.log("Calculating color stats and drawing 2D visualizations...");
 
-          const colorStats = calculateColorStats(pixelData, width, height);
+          // Calculate stats once with sampling for both basic and advanced visualizations
+          // Use sampleFactor=10 for good balance between accuracy and performance
+          const sampleFactor = 10;
+          const colorStats = calculateColorStats(pixelData, width, height, sampleFactor);
 
           if (colorStats) {
             // Display stats summary
             hsvStatsParagraph.textContent =
-              `平均 HSV: H=${colorStats.hsv.avg[0].toFixed(3)}, S=${colorStats.hsv.avg[1].toFixed(3)}, V=${colorStats.hsv.avg[2].toFixed(3)} ` +
-              `| 标准差: H=${colorStats.hsv.stdDev[0].toFixed(3)}, S=${colorStats.hsv.stdDev[1].toFixed(3)}, V=${colorStats.hsv.stdDev[2].toFixed(3)}`;
+              `${t('analysis.avgHSV')}: H=${colorStats.hsv.avg[0].toFixed(3)}, S=${colorStats.hsv.avg[1].toFixed(3)}, V=${colorStats.hsv.avg[2].toFixed(3)} ` +
+              `| ${t('analysis.stdDevHSV')}: H=${colorStats.hsv.stdDev[0].toFixed(3)}, S=${colorStats.hsv.stdDev[1].toFixed(3)}, V=${colorStats.hsv.stdDev[2].toFixed(3)}`;
 
             labStatsParagraph.textContent =
-              `平均 Lab: L*=${colorStats.lab.avg[0].toFixed(3)}, a*=${colorStats.lab.avg[1].toFixed(3)}, b*=${colorStats.lab.avg[2].toFixed(3)} ` +
-              `| 标准差: L*=${colorStats.lab.stdDev[0].toFixed(3)}, a*=${colorStats.lab.stdDev[1].toFixed(3)}, b*=${colorStats.lab.stdDev[2].toFixed(3)}`; // Corrected b* stdDev index
+              `${t('analysis.avgLab')}: L*=${colorStats.lab.avg[0].toFixed(3)}, a*=${colorStats.lab.avg[1].toFixed(3)}, b*=${colorStats.lab.avg[2].toFixed(3)} ` +
+              `| ${t('analysis.stdDevLab')}: L*=${colorStats.lab.stdDev[0].toFixed(3)}, a*=${colorStats.lab.stdDev[1].toFixed(3)}, b*=${colorStats.lab.stdDev[2].toFixed(3)}`;
 
             // Draw Histograms
             const binCount = 60; // Number of bars in histogram
@@ -382,8 +500,42 @@ document.addEventListener('DOMContentLoaded', () => {
             drawLabScatterPlotRevised(labScatterCanvas, pixelData, width, height, 100);
 
 
+            // Draw Advanced Visualizations using the same sampled data
+            console.log("Drawing advanced visualizations...");
+
+            // Get canvas elements
+            const huePolarCanvas = document.getElementById('huePolar');
+            const hsvSquareCanvas = document.getElementById('hsvSquare');
+            const distanceHeatmapCanvas = document.getElementById('distanceHeatmap');
+            const labDensityCanvas = document.getElementById('labDensity');
+
+            // Draw Hue Polar Chart
+            if (huePolarCanvas) {
+              drawHuePolarChart(huePolarCanvas, colorStats.rawValues.h, t('advanced.charts.huePolar.title'));
+            }
+
+            // HSV Square Chart 已移除（数据格式不匹配且实用性有限）
+
+            // Draw Color Distance Heatmap
+            // Use actual dimensions (may be different from original if image was downsampled)
+            if (distanceHeatmapCanvas && analyzedPalette) {
+              drawColorDistanceHeatmap(distanceHeatmapCanvas, analyzedPalette, pixelData, actualWidth, actualHeight, t('advanced.charts.distanceHeatmap.title'));
+            }
+
+            // Draw Lab Density Chart
+            if (labDensityCanvas) {
+              drawLabDensityChart(labDensityCanvas, colorStats.values, t('advanced.charts.labDensity.title'));
+            }
+
+
             // Show the analysis section
             colorAnalysisSection.style.display = 'block';
+
+            // Show the advanced visualization section
+            const advancedVizSection = document.getElementById('advancedVizSection');
+            if (advancedVizSection) {
+              advancedVizSection.style.display = 'block';
+            }
 
             console.log("Color stats calculated and 2D visualizations rendered.");
 
@@ -442,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } else {
           console.error("Failed to get pixel data from canvas or image size is zero.");
-          alert("无法处理图片像素数据。");
+          alert(t('errors.invalidImageData'));
           // Cleanup results
           hideResults();
           disposeScene();
@@ -452,7 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .catch(error => { // <-- Catch and log the actual error object
         console.error("Error during image loading process:", error);
-        alert("无法加载图片。请确保文件是有效的图片格式。详细信息请查看控制台。");
+        alert(t('errors.imageLoadFailed'));
         // Cleanup results
         hideResults();
         disposeScene();
@@ -464,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function hideResults () {
     uploadedImage.style.display = 'none';
     uploadedImage.src = '#'; // Reset image src
-    document.querySelector('.dashboard-container').style.display = 'none';
+    document.querySelector('.dashboard-container').classList.remove('visible');
 
     // Hide palette results (drawPalette([], ...) handles canvas and buttons)
     drawPalette([], paletteCanvas, 0);
@@ -474,8 +626,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Hide analysis section
     colorAnalysisSection.style.display = 'none';
-    // Stat paragraphs could be cleared here if desired:
-    // hsvStatsParagraph.textContent = ''; labStatsParagraph.textContent = '';
+
+    // Hide advanced visualization section
+    const advancedVizSection = document.getElementById('advancedVizSection');
+    if (advancedVizSection) {
+      advancedVizSection.style.display = 'none';
+    }
 
     // Hide sphere section
     colorSphereSection.style.display = 'none';
@@ -483,6 +639,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (spherePlaceholder) spherePlaceholder.style.display = 'block';
     const sphereExportButtonsDiv = document.querySelector('.color-sphere-section .export-buttons');
     if (sphereExportButtonsDiv) sphereExportButtonsDiv.style.display = 'none'; // Ensure sphere buttons are hidden
+  }
+
+  // Reset to initial state (show upload area, hide all results)
+  function resetToInitialState () {
+    // Reset image display - temporarily remove handlers to prevent error triggering
+    uploadedImage.onload = null;
+    uploadedImage.onerror = null;
+    uploadedImage.style.display = 'none';
+    uploadedImage.removeAttribute('src');
+    imageDisplay.classList.remove('has-image');
+
+    // Show upload area
+    document.querySelector('.upload-area').classList.remove('hidden');
+
+    // Hide all results
+    hideResults();
+
+    // Reset state variables
+    resetStateVariables();
+
+    // Reset 3D scene
+    disposeScene();
   }
 
   // --- Helper function to reset state variables ---
@@ -557,7 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       // If loop finishes without finding an image file
       console.warn("Dropped data does not contain an image file.");
-      alert("请拖拽一个图片文件。");
+      alert(t('errors.notImageFile'));
 
     } // Fallback for browsers that might not fully support DataTransferItemList
     else if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
@@ -567,11 +745,11 @@ document.addEventListener('DOMContentLoaded', () => {
         processImageFile(file, file.name);
       } else {
         console.warn("Dropped fallback file is not an image.");
-        alert("请拖拽一个图片文件。");
+        alert(t('errors.notImageFile'));
       }
     } else {
       console.warn("No files found in drop data.");
-      alert("请拖拽一个图片文件。");
+      alert(t('errors.notImageFile'));
     }
   });
 
@@ -632,7 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
       saveTextFile(`${currentImageFilename}_palette.json`, jsonString, 'application/json');
     } else {
       console.warn("No analyzed palette data available or image size is zero for export.");
-      alert("调色板数据未生成，无法导出。");
+      alert(t('errors.noPalette'));
     }
   });
 
@@ -646,7 +824,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else {
       console.warn("Three.js renderer, scene, or camera not available for sphere export.");
-      alert("3D 色球未生成，无法导出。");
+      alert(t('errors.noSphere'));
     }
   });
 

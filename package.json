@@ -1,0 +1,20 @@
+{
+  "name": "color-compass",
+  "version": "1.0.0",
+  "description": "![License](https://img.shields.io/github/license/AkutaZehy/color-compass?style=flat-square)\r ![Repo Size](https://img.shields.io/github/repo-size/AkutaZehy/color-compass?style=flat-square)\r [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/AkutaZehy/color-compass)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AkutaZehy/color-compass.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AkutaZehy/color-compass/issues"
+  },
+  "homepage": "https://github.com/AkutaZehy/color-compass#readme"
+}
