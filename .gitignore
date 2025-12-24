@@ -47,3 +47,5 @@ vssver.scc
 
 # Optional: If you store sample input images that are large, you might ignore them too.
 # e.g., sample_images/
+CLAUDE.md
+.claude/settings.local.json

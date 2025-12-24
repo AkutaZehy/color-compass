@@ -105,8 +105,8 @@ export function applySLIC (pixelData, width, height, superpixelCount, compactnes
 
 
 
-function calculateGradient (labData, width, height, x, y) {
-    // Calculate gradient in Lab color space
+function calculateGradient (rgbData, width, height, x, y) {
+    // Calculate gradient in RGB color space (luminance approximation)
     // Using central differences in 3x3 neighborhood
     if (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1) {
         return Infinity; // Border pixels have high gradient
@@ -118,9 +118,16 @@ function calculateGradient (labData, width, height, x, y) {
     const idxTop = (y - 1) * width + x;
     const idxBottom = (y + 1) * width + x;
 
-    // Calculate gradient in L channel (luminance)
-    const dx = labData[idxRight * 3] - labData[idxLeft * 3];
-    const dy = labData[idxBottom * 3] - labData[idxTop * 3];
+    // Calculate luminance (approximate: 0.299*R + 0.587*G + 0.114*B)
+    const getLuminance = (index) => {
+        const r = rgbData[index * 4];
+        const g = rgbData[index * 4 + 1];
+        const b = rgbData[index * 4 + 2];
+        return 0.299 * r + 0.587 * g + 0.114 * b;
+    };
+
+    const dx = getLuminance(idxRight) - getLuminance(idxLeft);
+    const dy = getLuminance(idxBottom) - getLuminance(idxTop);
 
     return dx * dx + dy * dy; // Gradient magnitude squared
 }
@@ -234,6 +241,7 @@ function assignPixelsToClusters (downsampledData, width, height, clusterCenters,
     const distances = new Float32Array(width * height).fill(Infinity);
     const step = Math.sqrt((width * height) / clusterCenters.length);
 
+    let previousLabels = null;
     for (let iter = 0; iter < 10; iter++) {
         clusterCenters.forEach((center, clusterIdx) => {
             if (!center) return; // Skip empty clusters
@@ -262,7 +270,8 @@ function assignPixelsToClusters (downsampledData, width, height, clusterCenters,
                     const spatialDist = dx * dx + dy * dy; // 使用平方距离避免平方根
 
                     // 预计算归一化因子
-                    const normalizedFactor = Math.max(10, Math.min(40, compactness)) / (step * step);
+                    // 使用完整的compactness范围(1-50)，避免硬编码限制
+                    const normalizedFactor = compactness / (step * step);
                     const distance = colorDist + normalizedFactor * spatialDist;
                     if (distance < distances[pixelIdx]) {
                         distances[pixelIdx] = distance;
@@ -271,6 +280,22 @@ function assignPixelsToClusters (downsampledData, width, height, clusterCenters,
                 }
             }
         });
+
+        // Check for convergence
+        if (previousLabels) {
+            let changed = false;
+            for (let i = 0; i < labels.length; i++) {
+                if (labels[i] !== previousLabels[i]) {
+                    changed = true;
+                    break;
+                }
+            }
+            if (!changed) {
+                console.log(`SLIC converged after ${iter + 1} iterations`);
+                break;
+            }
+        }
+        previousLabels = labels.slice(); // Copy current labels
 
         // Update cluster centers
         const newCenters = updateClusterCenters(downsampledData, width, height, labels, clusterCenters.length);
