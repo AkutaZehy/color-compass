@@ -15,7 +15,7 @@ body {
 
 .content-wrapper {
   padding: 0 20px 20px 20px;
-  max-width: 1800px;
+  max-width: none;
   margin: 0 auto;
 }
 
@@ -107,18 +107,65 @@ h3 {
 
 /* Image Display */
 .image-display {
-  margin: 20px 0 40px 0;
+  margin: 20px 0;
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
+  min-height: 150px;
 }
 
 #uploadedImage {
   max-width: 100%;
-  max-height: 500px;
+  max-height: 400px;
   display: none;
   border-radius: 8px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+#uploadedImage:hover {
+  transform: scale(1.02);
+  box-shadow: 0 12px 40px rgba(108, 99, 255, 0.3);
+}
+
+.image-placeholder {
+  text-align: center;
+  color: #666;
+  padding: 40px;
+  background: #252540;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 100, 100, 0.9);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  display: none;
+  font-size: 18px;
+  line-height: 30px;
+  text-align: center;
+  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+.remove-image-btn:hover {
+  background: rgba(255, 80, 80, 1);
+  transform: scale(1.1);
+}
+
+.image-display.has-image .remove-image-btn {
+  display: block;
 }
 
 /* Dashboard Layout */

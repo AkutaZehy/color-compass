@@ -60,8 +60,13 @@
         </div>
       </div>
 
-      <div class="image-display">
+      <div class="image-display" id="imageDisplay">
+        <button class="remove-image-btn" id="removeImageBtn" title="移除图片">×</button>
         <img id="uploadedImage" src="#" alt="Uploaded Image" />
+        <div class="image-placeholder" id="imagePlaceholder">
+          <p>图片预览区域</p>
+          <p style="font-size: 0.8em; color: #666;">点击图片可重新选择</p>
+        </div>
       </div>
 
       <!-- Hidden Canvas used to get pixel data -->
@@ -331,15 +336,11 @@
                     <p>色相极坐标分布</p>
                   </div>
                   <div class="chart-container">
-                    <canvas id="hsvSquare" width="400" height="450" role="img" aria-label="HSV方形分布图，横轴为色相，纵轴为饱和度"></canvas>
-                    <p>HSV分布图</p>
-                  </div>
-                  <div class="chart-container">
                     <canvas id="distanceHeatmap" width="400" height="400" role="img" aria-label="色彩距离热力图，显示每个区域到最近色板颜色的色差"></canvas>
                     <p>色彩距离热力图</p>
                   </div>
                   <div class="chart-container">
-                    <canvas id="labDensity" width="400" height="450" role="img" aria-label="Lab色彩密度分布图，显示a*b*平面的颜色密度"></canvas>
+                    <canvas id="labDensity" width="400" height="400" role="img" aria-label="Lab色彩密度分布图，显示a*b*平面的颜色密度"></canvas>
                     <p>Lab密度分布</p>
                   </div>
                 </div>

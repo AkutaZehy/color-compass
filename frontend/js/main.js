@@ -66,6 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const imageInput = document.getElementById('imageInput'); // File input
   const uploadArea = document.getElementById('uploadArea'); // Drag and drop area
   const uploadedImage = document.getElementById('uploadedImage'); // Image display
+  const imageDisplay = document.getElementById('imageDisplay'); // Image display container
+  const imagePlaceholder = document.getElementById('imagePlaceholder'); // Placeholder
+  const removeImageBtn = document.getElementById('removeImageBtn'); // Remove button
   const hiddenCanvas = document.getElementById('hiddenCanvas'); // Hidden canvas for pixel data
   const paletteCanvas = document.getElementById('paletteCanvas'); // Palette canvas
   const reRenderPaletteBtn = document.getElementById('reRenderPaletteBtn'); // Re-render button
@@ -139,6 +142,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Reset parameters
     resetParamsBtn.addEventListener('click', resetParamsToDefaults);
+
+    // Remove image button
+    removeImageBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevent triggering file input
+      resetToInitialState();
+    });
+
+    // Click on uploaded image to reselect
+    uploadedImage.addEventListener('click', () => {
+      imageInput.click();
+    });
   }
 
   // Update params from control values
@@ -344,7 +358,13 @@ document.addEventListener('DOMContentLoaded', () => {
     loadImageAndDisplay(file, uploadedImage)
       .then(loadedImgElement => {
         console.log("Image loading and display successful. Now getting pixel data...");
-        document.querySelector('.dashboard-container').style.display = 'flex';
+
+        // Show image and hide placeholder
+        uploadedImage.style.display = 'block';
+        imagePlaceholder.style.display = 'none';
+        imageDisplay.classList.add('has-image');
+
+        document.querySelector('.dashboard-container').classList.add('visible');
 
         // Store image size
         currentImageSize = { width: loadedImgElement.naturalWidth, height: loadedImgElement.naturalHeight };
@@ -453,10 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
               drawHuePolarChart(huePolarCanvas, colorStats.rawValues.h, '色相极坐标分布');
             }
 
-            // Draw HSV Square Chart
-            if (hsvSquareCanvas) {
-              drawHsvSquareChart(hsvSquareCanvas, colorStats.rawValues, 'HSV分布图');
-            }
+            // HSV Square Chart 已移除（数据格式不匹配且实用性有限）
 
             // Draw Color Distance Heatmap
             if (distanceHeatmapCanvas && analyzedPalette) {
@@ -557,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function hideResults () {
     uploadedImage.style.display = 'none';
     uploadedImage.src = '#'; // Reset image src
-    document.querySelector('.dashboard-container').style.display = 'none';
+    document.querySelector('.dashboard-container').classList.remove('visible');
 
     // Hide palette results (drawPalette([], ...) handles canvas and buttons)
     drawPalette([], paletteCanvas, 0);
@@ -567,8 +584,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Hide analysis section
     colorAnalysisSection.style.display = 'none';
-    // Stat paragraphs could be cleared here if desired:
-    // hsvStatsParagraph.textContent = ''; labStatsParagraph.textContent = '';
+
+    // Hide advanced visualization section
+    const advancedVizSection = document.getElementById('advancedVizSection');
+    if (advancedVizSection) {
+      advancedVizSection.style.display = 'none';
+    }
 
     // Hide sphere section
     colorSphereSection.style.display = 'none';
@@ -576,6 +597,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (spherePlaceholder) spherePlaceholder.style.display = 'block';
     const sphereExportButtonsDiv = document.querySelector('.color-sphere-section .export-buttons');
     if (sphereExportButtonsDiv) sphereExportButtonsDiv.style.display = 'none'; // Ensure sphere buttons are hidden
+  }
+
+  // Reset to initial state (show upload area, hide all results)
+  function resetToInitialState() {
+    // Reset image display
+    uploadedImage.style.display = 'none';
+    uploadedImage.src = '#';
+    imagePlaceholder.style.display = 'block';
+    imageDisplay.classList.remove('has-image');
+
+    // Hide all results
+    hideResults();
+
+    // Reset state variables
+    resetStateVariables();
+
+    // Reset 3D scene
+    disposeScene();
   }
 
   // --- Helper function to reset state variables ---
