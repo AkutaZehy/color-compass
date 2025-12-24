@@ -11,7 +11,7 @@
  * @returns {Array} - Analyzed palette with color information
  */
 import { rgbToLab, labDistance } from './colorUtils.js';
-export function analyzePalette (pixelData, dominantColors, paletteSize, maxHiddenColors, minHiddenPercentage, width, height, maxBackgrounds = 3, useSuperpixels = false, backgroundVarianceScale = 1, superpixelData = null) {
+export function analyzePalette (pixelData, dominantColors, paletteSize, maxHiddenColors, minHiddenPercentage, width, height, maxBackgrounds = 3, useSuperpixels = false, backgroundVarianceScale = 1, superpixelData = null, useDeltaE = false) {
   // Handle different input types
   let inputData;
   let weights = null;
@@ -49,7 +49,7 @@ export function analyzePalette (pixelData, dominantColors, paletteSize, maxHidde
 
   // Run clustering with perceptual distance metric
   const result = kmeansClustering(inputData, dominantColors, 10, {
-    useDeltaE: true,
+    useDeltaE: useDeltaE,
     weights: weights
   });
 

@@ -45,19 +45,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Palette Parameters with Default Values ---
   const paletteParams = {
     // 主参数
-    paletteSize: 25, // 总色板颜色数量
+    paletteSize: 20, // 总色板颜色数量 (与界面默认值一致)
     // 主色参数
-    dominantColors: 8, // 主色数量(1-3)
-    // 藏色参数  
-    maxHiddenColors: 3, // 藏色最大数量
+    dominantColors: 8, // 主色数量 (界面范围2-20)
+    // 藏色参数
+    maxHiddenColors: 2, // 藏色最大数量 (与界面默认值一致)
     minHiddenPercentage: 0.01, // 藏色最小占比阈值
     // SLIC参数
     superpixelCount: 200, // 超像素数量
     superpixelCompactness: 10, // 超像素紧密度
     // 背景色参数
-    maxBackgrounds: 2, // 最大背景色数量
+    maxBackgrounds: 3, // 最大背景色数量 (与界面默认值一致)
     backgroundVarianceScale: 1, // 背景色方差扩展系数
-    useSuperpixels: true // 是否使用SLIC超像素预处理 
+    useSuperpixels: true, // 是否使用SLIC超像素预处理
+    useDeltaE: false // 是否使用ΔE色差距离 (新增参数)
   };
 
   // --- Get HTML Elements ---
@@ -78,12 +79,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const superpixelCompactnessInput = document.getElementById('superpixelCompactness');
   const maxBackgroundsInput = document.getElementById('maxBackgrounds');
   const backgroundVarianceScaleInput = document.getElementById('backgroundVarianceScale');
+  const useDeltaEInput = document.getElementById('useDeltaE');
 
   // Parameter value displays
   const paletteSizeValue = document.getElementById('paletteSizeValue');
   const dominantColorsValue = document.getElementById('dominantColorsValue');
+  const maxHiddenColorsValue = document.getElementById('maxHiddenColorsValue');
+  const minHiddenPercentageValue = document.getElementById('minHiddenPercentageValue');
+  const superpixelCountValue = document.getElementById('superpixelCountValue');
+  const superpixelCompactnessValue = document.getElementById('superpixelCompactnessValue');
   const maxBackgroundsValue = document.getElementById('maxBackgroundsValue');
   const backgroundVarianceScaleValue = document.getElementById('backgroundVarianceScaleValue');
+  const useDeltaEValue = document.getElementById('useDeltaEValue');
 
   // Initialize parameter controls
   function initParamControls () {
@@ -96,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     superpixelCompactnessInput.value = paletteParams.superpixelCompactness;
     maxBackgroundsInput.value = paletteParams.maxBackgrounds;
     backgroundVarianceScaleInput.value = paletteParams.backgroundVarianceScale;
+    useDeltaEInput.checked = paletteParams.useDeltaE;
 
     // Update displayed values
     paletteSizeValue.textContent = paletteParams.paletteSize;
@@ -106,6 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness.toFixed(1);
     maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
     backgroundVarianceScaleValue.textContent = paletteParams.backgroundVarianceScale.toFixed(1);
+    useDeltaEValue.textContent = paletteParams.useDeltaE ? '开启' : '关闭';
 
     // Add event listeners
     paletteSizeInput.addEventListener('input', updateParamsFromControls);
@@ -116,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     superpixelCompactnessInput.addEventListener('input', updateParamsFromControls);
     maxBackgroundsInput.addEventListener('input', updateParamsFromControls);
     backgroundVarianceScaleInput.addEventListener('input', updateParamsFromControls);
+    useDeltaEInput.addEventListener('change', updateParamsFromControls);
 
     // Toggle advanced params
     toggleAdvancedBtn.addEventListener('click', () => {
@@ -136,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     paletteParams.superpixelCompactness = parseFloat(superpixelCompactnessInput.value);
     paletteParams.maxBackgrounds = parseInt(maxBackgroundsInput.value);
     paletteParams.backgroundVarianceScale = parseFloat(backgroundVarianceScaleInput.value);
+    paletteParams.useDeltaE = useDeltaEInput.checked;
 
     // Update displayed values
     paletteSizeValue.textContent = paletteParams.paletteSize;
@@ -146,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
     superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness.toFixed(1);
     maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
     backgroundVarianceScaleValue.textContent = paletteParams.backgroundVarianceScale.toFixed(1);
+    useDeltaEValue.textContent = paletteParams.useDeltaE ? '开启' : '关闭';
   }
 
   // Initialize controls
@@ -337,7 +349,8 @@ document.addEventListener('DOMContentLoaded', () => {
             paletteParams.maxBackgrounds,
             paletteParams.useSuperpixels,
             paletteParams.backgroundVarianceScale,
-            superpixelData
+            superpixelData,
+            paletteParams.useDeltaE
           );
           console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
 
