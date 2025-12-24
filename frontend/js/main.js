@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { loadLocale, getLocale } = await import('./i18n.js');
 
     // Update button states
-    function updateLangButtons(locale) {
+    function updateLangButtons (locale) {
       if (locale === 'zh-CN') {
         langZH.classList.add('active');
         langEN.classList.remove('active');
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (footer) {
         const versionSpan = document.createElement('span');
         versionSpan.className = 'git-version';
-        versionSpan.textContent = `Git版本: ${data.sha.substring(0, 7)}`;
+        versionSpan.textContent = `Last Commit: ${data.sha.substring(0, 7)}`;
         footer.appendChild(versionSpan);
       }
     })
@@ -642,7 +642,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Reset to initial state (show upload area, hide all results)
-  function resetToInitialState() {
+  function resetToInitialState () {
     // Reset image display - temporarily remove handlers to prevent error triggering
     uploadedImage.onload = null;
     uploadedImage.onerror = null;

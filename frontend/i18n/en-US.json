@@ -8,7 +8,7 @@
     "dragHint": "Drag image here or",
     "selectButton": "Select Image File",
     "pasteHint": "Or paste image directly (Ctrl+V)",
-    "removeButton": "Remove Image"
+    "removeButton": "×"
   },
   "palette": {
     "title": "Extracted Palette",

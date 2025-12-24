@@ -8,7 +8,7 @@
     "dragHint": "拖拽图片到此处或",
     "selectButton": "选择图片文件",
     "pasteHint": "或直接粘贴图片 (Ctrl+V)",
-    "removeButton": "移除图片"
+    "removeButton": "×"
   },
   "palette": {
     "title": "提取的色板",
