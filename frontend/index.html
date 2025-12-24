@@ -38,6 +38,7 @@
     <script type="module" src="js/paletteRenderer.js"></script>
     <script type="module" src="js/colorStats.js"></script>
     <script type="module" src="js/visualization2D.js"></script>
+    <script type="module" src="js/visualizationAdvanced.js"></script>
     <script type="module" src="js/sphereRenderer3D.js"></script>
     <script type="module" src="js/fileSaver.js"></script>
     <script type="module" src="js/main.js"></script>
@@ -296,28 +297,51 @@
               <h3>颜色分布图:</h3>
               <div class="histograms-container">
                 <div class="chart-container">
-                  <canvas id="histH"></canvas>
+                  <canvas id="histH" role="img" aria-label="色相分布直方图"></canvas>
                   <p>色相 (Hue)</p>
                 </div>
                 <div class="chart-container">
-                  <canvas id="histS"></canvas>
+                  <canvas id="histS" role="img" aria-label="饱和度分布直方图"></canvas>
                   <p>饱和度 (Saturation)</p>
                 </div>
                 <div class="chart-container">
-                  <canvas id="histV"></canvas>
+                  <canvas id="histV" role="img" aria-label="明度分布直方图"></canvas>
                   <p>明度 (Value)</p>
                 </div>
                 <div class="chart-container">
-                  <canvas id="histL"></canvas>
+                  <canvas id="histL" role="img" aria-label="L*明度分布直方图"></canvas>
                   <p>明度 (L*)</p>
                 </div>
                 <div class="chart-container">
-                  <canvas id="hista"></canvas>
+                  <canvas id="hista" role="img" aria-label="a*红绿轴分布直方图"></canvas>
                   <p>红-绿 (a*)</p>
                 </div>
                 <div class="chart-container">
-                  <canvas id="histb"></canvas>
+                  <canvas id="histb" role="img" aria-label="b*黄蓝轴分布直方图"></canvas>
                   <p>黄-蓝 (b*)</p>
+                </div>
+              </div>
+
+              <!-- 高级可视化图表 -->
+              <div class="advanced-visualizations">
+                <h3>高级可视化:</h3>
+                <div class="advanced-charts-grid">
+                  <div class="chart-container">
+                    <canvas id="huePolar" width="400" height="400" role="img" aria-label="色相极坐标分布图，显示色相在圆周上的分布密度"></canvas>
+                    <p>色相极坐标分布</p>
+                  </div>
+                  <div class="chart-container">
+                    <canvas id="hsvSquare" width="400" height="450" role="img" aria-label="HSV方形分布图，横轴为色相，纵轴为饱和度"></canvas>
+                    <p>HSV分布图</p>
+                  </div>
+                  <div class="chart-container">
+                    <canvas id="distanceHeatmap" width="400" height="400" role="img" aria-label="色彩距离热力图，显示每个区域到最近色板颜色的色差"></canvas>
+                    <p>色彩距离热力图</p>
+                  </div>
+                  <div class="chart-container">
+                    <canvas id="labDensity" width="400" height="450" role="img" aria-label="Lab色彩密度分布图，显示a*b*平面的颜色密度"></canvas>
+                    <p>Lab密度分布</p>
+                  </div>
                 </div>
               </div>
 
@@ -327,6 +351,8 @@
                     id="labScatter"
                     width="600"
                     height="600"
+                    role="img"
+                    aria-label="Lab a*b* 散点分布图，横轴为a*红绿轴，纵轴为b*黄蓝轴"
                   ></canvas>
                   <p>Lab a*b* 分布</p>
                 </div>
