@@ -29,9 +29,12 @@ export function loadImageAndDisplay (file, imgElement) {
       };
 
       imgElement.onerror = function () {
-        console.error("Error loading image data URL into img element.");
+        // Only log error if src is a valid data URL (not '#' placeholder)
+        if (imgElement.src && imgElement.src !== '' && imgElement.src !== window.location.href + '#') {
+          console.error("Error loading image data URL into img element.");
+        }
         imgElement.style.display = 'none';
-        imgElement.src = '#';
+        imgElement.src = '';
         reject(new Error("Failed to load image data."));
       };
     };

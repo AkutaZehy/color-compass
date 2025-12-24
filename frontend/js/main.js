@@ -67,7 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const uploadArea = document.getElementById('uploadArea'); // Drag and drop area
   const uploadedImage = document.getElementById('uploadedImage'); // Image display
   const imageDisplay = document.getElementById('imageDisplay'); // Image display container
-  const imagePlaceholder = document.getElementById('imagePlaceholder'); // Placeholder
   const removeImageBtn = document.getElementById('removeImageBtn'); // Remove button
   const hiddenCanvas = document.getElementById('hiddenCanvas'); // Hidden canvas for pixel data
   const paletteCanvas = document.getElementById('paletteCanvas'); // Palette canvas
@@ -362,9 +361,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Hide upload area, show image
         document.querySelector('.upload-area').classList.add('hidden');
 
-        // Show image and hide placeholder
+        // Show image and display container
         uploadedImage.style.display = 'block';
-        imagePlaceholder.style.display = 'none';
         imageDisplay.classList.add('has-image');
 
         document.querySelector('.dashboard-container').classList.add('visible');
@@ -374,9 +372,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Step 2: Get Pixel Data ---
         const pixelData = getCanvasPixelData(loadedImgElement, hiddenCanvas);
-        const width = currentImageSize.width;
+        // Get actual dimensions (may be downsampled for large images)
+        const actualWidth = hiddenCanvas.width;
+        const actualHeight = hiddenCanvas.height;
+        const width = currentImageSize.width; // Original dimensions for reference
         const height = currentImageSize.height;
-        const totalPixels = width * height;
+        const totalPixels = actualWidth * actualHeight;
 
         if (pixelData && totalPixels > 0) {
           console.log(`Successfully retrieved pixel data: ${pixelData.length} bytes for ${width}x${height} image.`);
@@ -479,8 +480,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // HSV Square Chart 已移除（数据格式不匹配且实用性有限）
 
             // Draw Color Distance Heatmap
+            // Use actual dimensions (may be different from original if image was downsampled)
             if (distanceHeatmapCanvas && analyzedPalette) {
-              drawColorDistanceHeatmap(distanceHeatmapCanvas, analyzedPalette, pixelData, width, height, '色彩距离热力图');
+              drawColorDistanceHeatmap(distanceHeatmapCanvas, analyzedPalette, pixelData, actualWidth, actualHeight, '色彩距离热力图');
             }
 
             // Draw Lab Density Chart
@@ -606,8 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function resetToInitialState() {
     // Reset image display
     uploadedImage.style.display = 'none';
-    uploadedImage.src = '#';
-    imagePlaceholder.style.display = 'block';
+    uploadedImage.src = '';
     imageDisplay.classList.remove('has-image');
 
     // Show upload area

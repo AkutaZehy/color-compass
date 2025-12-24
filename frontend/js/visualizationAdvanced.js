@@ -305,9 +305,12 @@ export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth,
       let totalDist = 0;
       let count = 0;
 
-      for (let y = startY; y < endY && y < imageHeight; y++) {
-        for (let x = startX; x < endX && x < imageWidth; x++) {
+      for (let y = startY; y < endY; y++) {
+        for (let x = startX; x < endX; x++) {
+          // Ensure we don't exceed pixel data bounds
           const idx = (y * imageWidth + x) * 4;
+          if (idx + 3 >= pixelData.length) continue; // Skip if out of bounds
+
           const r = pixelData[idx];
           const g = pixelData[idx + 1];
           const b = pixelData[idx + 2];
