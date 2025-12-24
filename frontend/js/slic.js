@@ -241,6 +241,7 @@ function assignPixelsToClusters (downsampledData, width, height, clusterCenters,
     const distances = new Float32Array(width * height).fill(Infinity);
     const step = Math.sqrt((width * height) / clusterCenters.length);
 
+    let previousLabels = null;
     for (let iter = 0; iter < 10; iter++) {
         clusterCenters.forEach((center, clusterIdx) => {
             if (!center) return; // Skip empty clusters
@@ -279,6 +280,22 @@ function assignPixelsToClusters (downsampledData, width, height, clusterCenters,
                 }
             }
         });
+
+        // Check for convergence
+        if (previousLabels) {
+            let changed = false;
+            for (let i = 0; i < labels.length; i++) {
+                if (labels[i] !== previousLabels[i]) {
+                    changed = true;
+                    break;
+                }
+            }
+            if (!changed) {
+                console.log(`SLIC converged after ${iter + 1} iterations`);
+                break;
+            }
+        }
+        previousLabels = labels.slice(); // Copy current labels
 
         // Update cluster centers
         const newCenters = updateClusterCenters(downsampledData, width, height, labels, clusterCenters.length);

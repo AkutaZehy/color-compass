@@ -114,6 +114,10 @@ function kmeansClustering (pixelData, initialCentroids, maxIterations, options =
   let counts = new Array(centroids.length).fill(0);
   const weights = options.weights || null;
 
+  // Early convergence check variables
+  let previousCentroids = null;
+  const convergenceThreshold = 1.0; // RGB distance threshold for convergence
+
   for (let iter = 0; iter < maxIterations; iter++) {
     // Assignment step
     let changed = false;
@@ -178,8 +182,28 @@ function kmeansClustering (pixelData, initialCentroids, maxIterations, options =
 
     counts = newCounts;
 
-    // Early termination if converged
-    if (!changed) break;
+    // Check for centroid convergence
+    if (previousCentroids) {
+      let maxCentroidChange = 0;
+      for (let i = 0; i < centroids.length; i++) {
+        const dist = colorDistance(
+          centroids[i].r, centroids[i].g, centroids[i].b,
+          previousCentroids[i].r, previousCentroids[i].g, previousCentroids[i].b
+        );
+        maxCentroidChange = Math.max(maxCentroidChange, dist);
+      }
+      if (maxCentroidChange < convergenceThreshold) {
+        console.log(`K-means converged after ${iter + 1} iterations (max change: ${maxCentroidChange.toFixed(2)})`);
+        break;
+      }
+    }
+    previousCentroids = centroids.map(c => ({ ...c })); // Deep copy
+
+    // Early termination if no label changes
+    if (!changed) {
+      console.log(`K-means converged after ${iter + 1} iterations (no label changes)`);
+      break;
+    }
   }
 
   return { centroids, labels, counts };
