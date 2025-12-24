@@ -1,5 +1,7 @@
 // frontend/js/imageHandler.js
 
+import { t } from './i18n.js'; // Import i18n module
+
 /**
  * Reads a File object and displays it in an <img> element.
  * Uses FileReader to get a Data URL.
@@ -92,7 +94,7 @@ export function getCanvasPixelData (imgElement, canvasElement, maxPixels = 20000
     const scale = Math.sqrt(maxPixels / totalPixels);
     drawWidth = Math.floor(originalWidth * scale);
     drawHeight = Math.floor(originalHeight * scale);
-    console.log(`Downsampling image from ${originalWidth}x${originalHeight} to ${drawWidth}x${drawHeight} for performance`);
+    console.log(`Downsampling image from ${originalWidth}x${originalHeight} to ${drawWidth}x${drawHeight} (${t('app.performanceOptimization')})`);
   }
 
   // Set canvas dimensions (may be smaller than original for large images)

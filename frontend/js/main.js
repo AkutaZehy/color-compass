@@ -13,6 +13,7 @@ import { drawHuePolarChart, drawHsvSquareChart, drawColorDistanceHeatmap, drawLa
 import { setupSphereScene, disposeScene, exportSphereAsImage } from './sphereRenderer3D.js'; // Import setup, dispose, and export function
 import { saveTextFile, saveDataUrlAsFile } from './fileSaver.js'; // Import file saver utilities
 import { rgbToHex } from './colorUtils.js'; // Make sure this is imported
+import { t, initI18n } from './i18n.js'; // Import i18n module
 
 
 // --- State Variables ---
@@ -26,7 +27,43 @@ let currentImageSize = { width: 0, height: 0 }; // Stores the loaded image dimen
 let currentPixelData = null; // Store pixel data to allow re-generating palette/3D from controls
 
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Initialize i18n module
+  await initI18n();
+
+  // Language switcher functionality
+  const langZH = document.getElementById('langZH');
+  const langEN = document.getElementById('langEN');
+
+  if (langZH && langEN) {
+    const { loadLocale, getLocale } = await import('./i18n.js');
+
+    // Update button states
+    function updateLangButtons(locale) {
+      if (locale === 'zh-CN') {
+        langZH.classList.add('active');
+        langEN.classList.remove('active');
+      } else {
+        langEN.classList.add('active');
+        langZH.classList.remove('active');
+      }
+    }
+
+    // Add click handlers
+    langZH.addEventListener('click', async () => {
+      await loadLocale('zh-CN');
+      updateLangButtons('zh-CN');
+    });
+
+    langEN.addEventListener('click', async () => {
+      await loadLocale('en-US');
+      updateLangButtons('en-US');
+    });
+
+    // Initialize button states based on current locale
+    updateLangButtons(getLocale());
+  }
+
   console.log("DOM fully loaded and parsed.");
 
   // Dynamic version info from GitHub
@@ -41,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
         footer.appendChild(versionSpan);
       }
     })
-    .catch(e => console.log('版本信息获取失败:', e));
+    .catch(e => console.log(t('version.fetchFailed'), e));
 
   // --- Palette Parameters with Default Values ---
   const paletteParams = {
@@ -118,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness.toFixed(1);
     maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
     backgroundVarianceScaleValue.textContent = paletteParams.backgroundVarianceScale.toFixed(1);
-    useDeltaEValue.textContent = paletteParams.useDeltaE ? '开启' : '关闭';
+    useDeltaEValue.textContent = paletteParams.useDeltaE ? t('palette.labels.deltaEOn') : t('palette.labels.deltaEOff');
 
     // Add event listeners
     paletteSizeInput.addEventListener('input', updateParamsFromControls);
@@ -136,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const advancedContent = document.querySelector('.advanced-content');
       const isHidden = advancedContent.style.display === 'none';
       advancedContent.style.display = isHidden ? 'block' : 'none';
-      toggleAdvancedBtn.textContent = isHidden ? '隐藏高级参数' : '显示高级参数';
+      toggleAdvancedBtn.textContent = isHidden ? t('palette.hideAdvanced') : t('palette.showAdvanced');
     });
 
     // Reset parameters
@@ -175,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
     superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness.toFixed(1);
     maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
     backgroundVarianceScaleValue.textContent = paletteParams.backgroundVarianceScale.toFixed(1);
-    useDeltaEValue.textContent = paletteParams.useDeltaE ? '开启' : '关闭';
+    useDeltaEValue.textContent = paletteParams.useDeltaE ? t('palette.labels.deltaEOn') : t('palette.labels.deltaEOff');
   }
 
   // Reset parameters to defaults
@@ -211,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateParamsFromControls();
 
     console.log('Parameters reset to defaults');
-    alert('参数已重置为默认值');
+    alert(t('params.reset'));
   }
 
   // Initialize controls
@@ -330,17 +367,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Basic file/blob validation
     if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
       console.error("Invalid input: Provided object is not a valid File or Blob.", file);
-      alert("无效的文件或图片数据。");
+      alert(t('errors.invalidFile'));
       return;
     }
     if (!file.type.startsWith('image/')) {
       console.error("Invalid input: Provided file is not an image type.", file.type);
-      alert("请选择或粘贴图片文件。");
+      alert(t('errors.notImage'));
       return;
     }
     if (file.size === 0) {
       console.warn("Provided file is empty.");
-      alert("文件内容为空。");
+      alert(t('errors.emptyFile'));
       return;
     }
 
@@ -557,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } else {
           console.error("Failed to get pixel data from canvas or image size is zero.");
-          alert("无法处理图片像素数据。");
+          alert(t('errors.invalidImageData'));
           // Cleanup results
           hideResults();
           disposeScene();
@@ -567,7 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .catch(error => { // <-- Catch and log the actual error object
         console.error("Error during image loading process:", error);
-        alert("无法加载图片。请确保文件是有效的图片格式。详细信息请查看控制台。");
+        alert(t('errors.imageLoadFailed'));
         // Cleanup results
         hideResults();
         disposeScene();
@@ -698,7 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       // If loop finishes without finding an image file
       console.warn("Dropped data does not contain an image file.");
-      alert("请拖拽一个图片文件。");
+      alert(t('errors.notImageFile'));
 
     } // Fallback for browsers that might not fully support DataTransferItemList
     else if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
@@ -708,11 +745,11 @@ document.addEventListener('DOMContentLoaded', () => {
         processImageFile(file, file.name);
       } else {
         console.warn("Dropped fallback file is not an image.");
-        alert("请拖拽一个图片文件。");
+        alert(t('errors.notImageFile'));
       }
     } else {
       console.warn("No files found in drop data.");
-      alert("请拖拽一个图片文件。");
+      alert(t('errors.notImageFile'));
     }
   });
 
@@ -773,7 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
       saveTextFile(`${currentImageFilename}_palette.json`, jsonString, 'application/json');
     } else {
       console.warn("No analyzed palette data available or image size is zero for export.");
-      alert("调色板数据未生成，无法导出。");
+      alert(t('errors.noPalette'));
     }
   });
 
@@ -787,7 +824,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else {
       console.warn("Three.js renderer, scene, or camera not available for sphere export.");
-      alert("3D 色球未生成，无法导出。");
+      alert(t('errors.noSphere'));
     }
   });
 

@@ -20,7 +20,7 @@
 
 开箱即用，无需安装！
 
-本地部署此版本建议使用 VSCode Live Server。~~纯前端，NodeJS 都不用~~
+本地部署此版本建议使用 VSCode Live Server，也可以直接用file协议打开`index.html`。~~纯前端，NodeJS 都不用~~
 
 ### C# 桌面版本
 

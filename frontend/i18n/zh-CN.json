@@ -1,0 +1,139 @@
+{
+  "app": {
+    "title": "Color Compass",
+    "description": "从图像中提取色板并使用 CIELAB 模型在 3D 中可视化色彩空间"
+  },
+  "upload": {
+    "dragHint": "拖拽图片到此处或",
+    "selectButton": "选择图片文件",
+    "pasteHint": "或直接粘贴图片 (Ctrl+V)",
+    "removeButton": "移除图片"
+  },
+  "palette": {
+    "title": "提取的色板",
+    "reRenderButton": "重新生成色板",
+    "resetParamsButton": "重置参数",
+    "basicParams": "基础参数",
+    "advancedParams": "高级参数",
+    "showAdvanced": "显示高级参数",
+    "hideAdvanced": "隐藏高级参数",
+    "placeholder": "选择图片以生成色板。",
+    "export": {
+      "image": "保存色板图片",
+      "data": "保存色板数据"
+    },
+    "labels": {
+      "dominantColors": "色板颜色数量",
+      "paletteSize": "最大颜色数量",
+      "maxHiddenColors": "藏色最大数量",
+      "minHiddenPercentage": "藏色最小占比",
+      "superpixelCount": "超像素数量",
+      "superpixelCompactness": "超像素紧密度",
+      "backgroundVarianceScale": "背景色匹配系数",
+      "maxBackgrounds": "潜在背景色数量",
+      "useDeltaE": "使用ΔE色差距离",
+      "deltaEOff": "关闭",
+      "deltaEOn": "开启"
+    },
+    "tooltips": {
+      "dominantColors": "控制色板中颜色的数量。",
+      "paletteSize": "控制最终色板中最多显示多少种颜色。增加该值会使色板被允许包含更多的颜色，配合色板颜色数量使用。",
+      "maxHiddenColors": "控制算法最多识别多少种藏色(不常见但重要的颜色)。",
+      "minHiddenPercentage": "控制识别藏色的最小像素占比阈值。",
+      "superpixelCount": "控制SLIC算法生成的超像素区域数量。提高该值可以一定程度改善色板颜色的丰富程度。警告：提高该值会显著延长生成色板所需的时间。",
+      "superpixelCompactness": "控制SLIC超像素的形状规则程度。提高该值可以一定程度抑制色板中相似颜色的输出。",
+      "backgroundVarianceScale": "控制背景色匹配的阈值比例。提高该值可以提高背景容忍近邻颜色的程度。",
+      "maxBackgrounds": "控制算法最多识别多少种背景色。",
+      "useDeltaE": "启用ΔE色差距离计算，更符合人眼感知但计算较慢。"
+    },
+    "tags": {
+      "background": "背景",
+      "featured": "特征"
+    },
+    "colorSpace": "Lch 色彩空间 (3D)",
+    "spherePlaceholder": "选择图片以生成 3D 色彩球体。",
+    "sphereExport": "保存 3D 色彩球体图片"
+  },
+  "analysis": {
+    "title": "色彩倾向分析",
+    "tooltip": "通常来说，RGB 到 CIELAB 不可以直接转换。此处假定了输入是 sRGB 空间，以 D65 标准光源为参考白点，使用标准伽马矫正公式转为线性 RGB，使用标准矩阵变换转为 CIE XYZ，使用 CIE 标准公式转为 CIELAB。",
+    "stats": "统计摘要：",
+    "distribution": "色彩分布：",
+    "histograms": {
+      "hue": "色相 (Hue)",
+      "saturation": "饱和度 (Saturation)",
+      "value": "明度 (Value)",
+      "luminance": "明度 (L*)",
+      "aAxis": "红-绿 (a*)",
+      "bAxis": "黄-蓝 (b*)"
+    }
+  },
+  "advanced": {
+    "title": "高级色彩分析",
+    "tooltip": "使用极坐标和密度分布展示颜色的色相、饱和度、明度以及在 CIELAB 色彩空间中的分布特征，帮助深入理解图像的色彩构成。",
+    "charts": {
+      "huePolar": {
+        "title": "色相极坐标分布",
+        "tooltip": "以极坐标形式展示色相(Hue)在 360 度色环上的分布密度。圆心到边缘表示色相出现的频率，边缘越丰满表示该色相在图像中出现越多。"
+      },
+      "labScatter": {
+        "title": "Lab a*b* 分布",
+        "tooltip": "在 CIELAB 色彩空间的 a*(红绿轴)和 b*(黄蓝轴)平面上的颜色散点分布。中心(0,0)为中性灰色，向四周扩展表示颜色饱和度增加。"
+      },
+      "distanceHeatmap": {
+        "title": "色彩距离热力图",
+        "tooltip": "展示图像各区域与提取的色板之间的色彩差异程度。绿色表示该区域颜色与色板匹配良好，红色表示差异较大，有助于评估色板的代表性。",
+        "legend": {
+          "low": "低差异",
+          "high": "高差异",
+          "description": "(显示每个区域到最近色板颜色的平均色差)"
+        }
+      },
+      "labDensity": {
+        "title": "Lab 密度分布",
+        "tooltip": "在 a*b* 平面上的颜色密度热力图。颜色越亮表示该位置聚集了越多像素，直观展示图像的主要色彩分布区域。"
+      }
+    },
+    "axes": {
+      "aAxis": "a* (红绿轴)",
+      "bAxis": "b* (黄蓝轴)",
+      "hue": "色相",
+      "saturation": "饱和度"
+    }
+  },
+  "footer": {
+    "github": "GitHub 仓库",
+    "privacy": "我们尊重您的隐私。事实上，这个项目是纯前端项目，因此您的数据均将会在本地处理，不会上传到服务器（我们也没有服务器！）"
+  },
+  "errors": {
+    "invalidFile": "无效的文件或图像数据。",
+    "notImage": "请选择或粘贴图片文件。",
+    "emptyFile": "文件内容为空。",
+    "invalidImageData": "无法处理图像像素数据。",
+    "imageLoadFailed": "加载图像失败。请确保文件是有效的图像格式。查看控制台了解详情。",
+    "notImageFile": "请拖拽图片文件。",
+    "noPalette": "未生成色板数据，无法导出。",
+    "paletteExportFailed": "导出色板图片失败。",
+    "noSphere": "未生成 3D 色彩球体，无法导出。",
+    "invalidSphereCanvas": "3D 色彩球体画布大小无效，无法导出。",
+    "sphereExportFailed": "导出 3D 色彩球体图片失败。",
+    "fileSaveFailed": "保存文件 {filename} 失败。",
+    "imageSaveFailed": "保存图片 {filename} 失败。"
+  },
+  "params": {
+    "reset": "参数已重置为默认值。"
+  },
+  "version": {
+    "label": "Git 版本：",
+    "fetchFailed": "获取版本信息失败："
+  },
+  "analysis": {
+    "noHueData": "无色相数据",
+    "noHSVData": "无HSV数据",
+    "noData": "无数据",
+    "noLabData": "无Lab数据"
+  },
+  "app": {
+    "performanceOptimization": "性能优化"
+  }
+}

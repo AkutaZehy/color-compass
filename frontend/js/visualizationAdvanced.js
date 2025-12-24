@@ -6,6 +6,7 @@
  */
 
 import { rgbToHsv, rgbToLab } from './colorUtils.js';
+import { t } from './i18n.js'; // Import i18n module
 
 /**
  * Draws a polar histogram for hue distribution
@@ -29,7 +30,7 @@ export function drawHuePolarChart(canvas, hValues, title = '色相分布') {
     ctx.fillStyle = '#888';
     ctx.textAlign = 'center';
     ctx.font = '14px sans-serif';
-    ctx.fillText('无色相数据', centerX, centerY);
+    ctx.fillText(t('analysis.noHueData'), centerX, centerY);
     return;
   }
 
@@ -138,7 +139,7 @@ export function drawHsvSquareChart(canvas, pixelData, title = 'HSV分布图') {
     ctx.fillStyle = '#888';
     ctx.textAlign = 'center';
     ctx.font = '14px sans-serif';
-    ctx.fillText('无HSV数据', width / 2, height / 2);
+    ctx.fillText(t('analysis.noHSVData'), width / 2, height / 2);
     return;
   }
 
@@ -279,7 +280,7 @@ export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth,
     ctx.fillStyle = '#888';
     ctx.textAlign = 'center';
     ctx.font = '14px sans-serif';
-    ctx.fillText('无数据', width / 2, height / 2);
+    ctx.fillText(t('analysis.noData'), width / 2, height / 2);
     return;
   }
 
@@ -432,7 +433,7 @@ export function drawLabDensityChart(canvas, labValues, title = 'Lab色彩密度�
     ctx.fillStyle = '#888';
     ctx.textAlign = 'center';
     ctx.font = '14px sans-serif';
-    ctx.fillText('无Lab数据', width / 2, height / 2);
+    ctx.fillText(t('analysis.noLabData'), width / 2, height / 2);
     return;
   }
 
