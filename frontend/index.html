@@ -327,13 +327,17 @@
                 </div>
               </div>
 
-            <!-- 高级可视化图表 -->
+            <!-- 高级可视化图表 - 2x2网格布局 -->
               <div class="advanced-viz-section" id="advancedVizSection">
                 <h2>高级色彩分析</h2>
-                <div class="advanced-charts-grid">
+                <div class="advanced-charts-grid four-charts">
                   <div class="chart-container">
                     <canvas id="huePolar" width="400" height="400" role="img" aria-label="色相极坐标分布图，显示色相在圆周上的分布密度"></canvas>
                     <p>色相极坐标分布</p>
+                  </div>
+                  <div class="chart-container">
+                    <canvas id="labScatter" width="400" height="400" role="img" aria-label="Lab a*b* 散点分布图，横轴为a*红绿轴，纵轴为b*黄蓝轴"></canvas>
+                    <p>Lab a*b* 分布</p>
                   </div>
                   <div class="chart-container">
                     <canvas id="distanceHeatmap" width="400" height="400" role="img" aria-label="色彩距离热力图，显示每个区域到最近色板颜色的色差"></canvas>
@@ -346,18 +350,7 @@
                 </div>
               </div>
 
-              <div class="lab-scatter-section">
-                <div class="chart-container large-chart">
-                  <canvas
-                    id="labScatter"
-                    width="600"
-                    height="600"
-                    role="img"
-                    aria-label="Lab a*b* 散点分布图，横轴为a*红绿轴，纵轴为b*黄蓝轴"
-                  ></canvas>
-                  <p>Lab a*b* 分布</p>
-                </div>
-              </div>
+              <!-- 移除原来的lab-scatter-section，它已经移到高级图表区域 -->
             </div>
           </div>
         </div>

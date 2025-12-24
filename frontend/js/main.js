@@ -359,6 +359,9 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(loadedImgElement => {
         console.log("Image loading and display successful. Now getting pixel data...");
 
+        // Hide upload area, show image
+        document.querySelector('.upload-area').classList.add('hidden');
+
         // Show image and hide placeholder
         uploadedImage.style.display = 'block';
         imagePlaceholder.style.display = 'none';
@@ -606,6 +609,9 @@ document.addEventListener('DOMContentLoaded', () => {
     uploadedImage.src = '#';
     imagePlaceholder.style.display = 'block';
     imageDisplay.classList.remove('has-image');
+
+    // Show upload area
+    document.querySelector('.upload-area').classList.remove('hidden');
 
     // Hide all results
     hideResults();
