@@ -213,13 +213,13 @@ export function drawHsvSquareChart(canvas, pixelData, title = 'HSV分布图') {
   ctx.fillStyle = '#888';
   ctx.font = '11px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('色相 (Hue)', margin + chartWidth / 2, height - 8);
+  ctx.fillText(t('advanced.axes.hue'), margin + chartWidth / 2, height - 8);
 
   // Y-axis label (Saturation)
   ctx.save();
   ctx.translate(12, margin + chartHeight / 2);
   ctx.rotate(-Math.PI / 2);
-  ctx.fillText('饱和度 (Saturation)', 0, 0);
+  ctx.fillText(t('advanced.axes.saturation'), 0, 0);
   ctx.restore();
 
   // Draw tick labels
@@ -405,8 +405,8 @@ export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth,
   ctx.fillStyle = '#888';
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('低差异', margin, legendY + legendHeight + 12);
-  ctx.fillText('高差异', margin + legendWidth, legendY + legendHeight + 12);
+  ctx.fillText(t('advanced.charts.distanceHeatmap.legend.low'), margin, legendY + legendHeight + 12);
+  ctx.fillText(t('advanced.charts.distanceHeatmap.legend.high'), margin + legendWidth, legendY + legendHeight + 12);
 
   // Description
   ctx.font = '9px sans-serif';
@@ -506,12 +506,12 @@ export function drawLabDensityChart(canvas, labValues, title = 'Lab色彩密度�
   ctx.fillStyle = '#888';
   ctx.font = '11px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('a* (红-绿轴)', margin + plotWidth / 2, height - 8);
+  ctx.fillText(t('advanced.axes.aAxis'), margin + plotWidth / 2, height - 8);
 
   ctx.save();
   ctx.translate(12, margin + plotHeight / 2);
   ctx.rotate(-Math.PI / 2);
-  ctx.fillText('b* (黄-蓝轴)', 0, 0);
+  ctx.fillText(t('advanced.axes.bAxis'), 0, 0);
   ctx.restore();
 
   // Tick labels
