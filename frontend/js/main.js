@@ -472,6 +472,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Show the analysis section
             colorAnalysisSection.style.display = 'block';
 
+            // Show the advanced visualization section
+            const advancedVizSection = document.getElementById('advancedVizSection');
+            if (advancedVizSection) {
+              advancedVizSection.style.display = 'block';
+            }
+
             console.log("Color stats calculated and 2D visualizations rendered.");
 
             // --- Step 5: Setup and Render 3D Sphere ---
