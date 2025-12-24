@@ -105,8 +105,8 @@ export function applySLIC (pixelData, width, height, superpixelCount, compactnes
 
 
 
-function calculateGradient (labData, width, height, x, y) {
-    // Calculate gradient in Lab color space
+function calculateGradient (rgbData, width, height, x, y) {
+    // Calculate gradient in RGB color space (luminance approximation)
     // Using central differences in 3x3 neighborhood
     if (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1) {
         return Infinity; // Border pixels have high gradient
@@ -118,9 +118,16 @@ function calculateGradient (labData, width, height, x, y) {
     const idxTop = (y - 1) * width + x;
     const idxBottom = (y + 1) * width + x;
 
-    // Calculate gradient in L channel (luminance)
-    const dx = labData[idxRight * 3] - labData[idxLeft * 3];
-    const dy = labData[idxBottom * 3] - labData[idxTop * 3];
+    // Calculate luminance (approximate: 0.299*R + 0.587*G + 0.114*B)
+    const getLuminance = (index) => {
+        const r = rgbData[index * 4];
+        const g = rgbData[index * 4 + 1];
+        const b = rgbData[index * 4 + 2];
+        return 0.299 * r + 0.587 * g + 0.114 * b;
+    };
+
+    const dx = getLuminance(idxRight) - getLuminance(idxLeft);
+    const dy = getLuminance(idxBottom) - getLuminance(idxTop);
 
     return dx * dx + dy * dy; // Gradient magnitude squared
 }
