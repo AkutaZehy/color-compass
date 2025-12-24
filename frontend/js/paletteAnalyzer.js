@@ -1,6 +1,6 @@
 /**
  * Two-stage Kmeans algorithm for palette analysis
- * 
+ *
  * @param {Uint8Array} pixelData - Original image pixel data
  * @param {Array} dominantColors - Dominant colors from MMCQ
  * @param {number} paletteSize - Total palette size
@@ -10,6 +10,7 @@
  * @param {number} height - Image height
  * @returns {Array} - Analyzed palette with color information
  */
+import { rgbToLab, labDistance } from './colorUtils.js';
 export function analyzePalette (pixelData, dominantColors, paletteSize, maxHiddenColors, minHiddenPercentage, width, height, maxBackgrounds = 3, useSuperpixels = false, backgroundVarianceScale = 1, superpixelData = null) {
   // Handle different input types
   let inputData;
@@ -133,7 +134,16 @@ function kmeansClustering (pixelData, initialCentroids, maxIterations, options =
           console.error(`Invalid centroid at index ${idx}:`, centroid);
           throw new Error(`Invalid centroid at index ${idx}`);
         }
-        const dist = colorDistance(r, g, b, centroid.r, centroid.g, centroid.b);
+        let dist;
+        if (options.useDeltaE) {
+          // 使用ΔE色差距离
+          const lab1 = rgbToLab(r, g, b);
+          const lab2 = rgbToLab(centroid.r, centroid.g, centroid.b);
+          dist = labDistance(lab1, lab2);
+        } else {
+          // 使用RGB欧氏距离
+          dist = colorDistance(r, g, b, centroid.r, centroid.g, centroid.b);
+        }
         if (dist < minDist) {
           minDist = dist;
           bestCluster = idx;
@@ -295,8 +305,3 @@ function formatOutput (centroids, counts, backgroundIndices, totalPixels, hidden
   }));
 }
 
-// Placeholder for RGB to Lab conversion
-function rgbToLab (r, g, b) {
-  // Implementation would go here
-  return [0, 0, 0]; // Dummy values
-}
