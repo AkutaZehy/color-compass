@@ -1,7 +1,8 @@
 {
   "app": {
     "title": "Color Compass",
-    "description": "Extract color palettes from images and visualize color spaces in 3D using CIELAB model"
+    "description": "Extract color palettes from images and visualize color spaces in 3D using CIELAB model",
+    "performanceOptimization": "performance optimization"
   },
   "upload": {
     "dragHint": "Drag image here or",
@@ -66,7 +67,17 @@
       "luminance": "L* (Luminance)",
       "aAxis": "a* (Red-Green)",
       "bAxis": "b* (Yellow-Blue)"
-    }
+    },
+    "noHueData": "No hue data",
+    "noHSVData": "No HSV data",
+    "noData": "No data",
+    "noLabData": "No Lab data",
+    "avg": "Avg",
+    "stdDev": "Std Dev",
+    "avgHSV": "Avg HSV",
+    "stdDevHSV": "Std Dev",
+    "avgLab": "Avg Lab",
+    "stdDevLab": "Std Dev"
   },
   "advanced": {
     "title": "Advanced Color Analysis",
@@ -126,14 +137,5 @@
   "version": {
     "label": "Git Version:",
     "fetchFailed": "Failed to fetch version information:"
-  },
-  "analysis": {
-    "noHueData": "No hue data",
-    "noHSVData": "No HSV data",
-    "noData": "No data",
-    "noLabData": "No Lab data"
-  },
-  "app": {
-    "performanceOptimization": "performance optimization"
   }
 }

@@ -55,18 +55,18 @@
       <div class="input-section">
         <div id="uploadArea" class="upload-area">
           <div class="upload-instructions">
-            <p>data-i18n="upload.dragHint"</p>
+            <p data-i18n="upload.dragHint"></p>
             <label for="imageInput" class="file-input-label">
-              选择图片文件
+              <span data-i18n="upload.selectButton"></span>
               <input type="file" id="imageInput" accept="image/*" />
             </label>
-            <p class="paste-hint">或直接粘贴图片 (Ctrl+V)</p>
+            <p class="paste-hint"><span data-i18n="upload.pasteHint"></span></p>
           </div>
         </div>
       </div>
 
       <div class="image-display" id="imageDisplay">
-        <button class="remove-image-btn" id="removeImageBtn" title="移除图片">×</button>
+        <button class="remove-image-btn" id="removeImageBtn" title="" data-i18n="upload.removeButton" data-i18n-attr="title">×</button>
         <img id="uploadedImage" src="#" alt="Uploaded Image" />
       </div>
 
@@ -76,13 +76,13 @@
       <div class="dashboard-container">
         <div class="left-panel">
           <div class="palette-section">
-            <h2>data-i18n="palette.title"</h2>
+            <h2><span data-i18n="palette.title" data-i18n-attr="textContent"></span></h2>
             <div class="palette-controls">
-              <button id="reRenderPaletteBtn">data-i18n="palette.reRenderButton"</button>
-              <button id="resetParamsBtn" style="margin-left: 10px;">data-i18n="palette.resetParamsButton"</button>
+              <button id="reRenderPaletteBtn"><span data-i18n="palette.reRenderButton" data-i18n-attr="textContent"></span></button>
+              <button id="resetParamsBtn" style="margin-left: 10px;"><span data-i18n="palette.resetParamsButton" data-i18n-attr="textContent"></span></button>
               <div class="palette-params">
                 <div class="params-basic">
-                  <h3>data-i18n="palette.basicParams"</h3>
+                  <h3><span data-i18n="palette.basicParams" data-i18n-attr="textContent"></span></h3>
                   <div class="param-group">
                     <label for="dominantColors"
                       ><span data-i18n="palette.labels.dominantColors" data-i18n-attr="textContent"></span>
@@ -99,7 +99,7 @@
                   </div>
                 </div>
                 <div class="params-advanced">
-                  <button id="toggleAdvancedBtn">data-i18n="palette.showAdvanced"</button>
+                  <button id="toggleAdvancedBtn"><span data-i18n="palette.showAdvanced" data-i18n-attr="textContent"></span></button>
                   <div class="advanced-content" style="display: none">
                     <div class="param-group">
                       <label for="paletteSize"
@@ -215,17 +215,17 @@
                         type="checkbox"
                         id="useDeltaE"
                       />
-                      <span class="param-value" id="useDeltaEValue">data-i18n="palette.labels.deltaEOff"</span>
+                      <span class="param-value" id="useDeltaEValue"><span data-i18n="palette.labels.deltaEOff" data-i18n-attr="textContent"></span></span>
                     </div>
                   </div>
                 </div>
               </div>
               <canvas id="paletteCanvas"></canvas>
-              <p id="palettePlaceholder">data-i18n="palette.placeholder"</p>
+              <p id="palettePlaceholder"><span data-i18n="palette.placeholder" data-i18n-attr="textContent"></span></p>
               <div class="export-buttons">
                 <!-- Export buttons for palette -->
-                <button id="savePaletteImageBtn">data-i18n="palette.export.image"</button>
-                <button id="savePaletteDataBtn">data-i18n="palette.export.data"</button>
+                <button id="savePaletteImageBtn"><span data-i18n="palette.export.image" data-i18n-attr="textContent"></span></button>
+                <button id="savePaletteDataBtn"><span data-i18n="palette.export.data" data-i18n-attr="textContent"></span></button>
               </div>
             </div>
           </div>
@@ -235,10 +235,10 @@
             <div id="sphereContainer">
               <!-- Three.js will render its canvas here -->
             </div>
-            <p id="spherePlaceholder">data-i18n="palette.spherePlaceholder"</p>
+            <p id="spherePlaceholder"><span data-i18n="palette.spherePlaceholder" data-i18n-attr="textContent"></span></p>
             <div class="export-buttons">
               <!-- Export button for 3D sphere -->
-              <button id="saveSphereImageBtn">data-i18n="palette.sphereExport"</button>
+              <button id="saveSphereImageBtn"><span data-i18n="palette.sphereExport" data-i18n-attr="textContent"></span></button>
             </div>
           </div>
         </div>
@@ -247,14 +247,14 @@
           <div class="color-analysis-section">
             <h2><span data-i18n="analysis.title" data-i18n-attr="textContent"></span><span class="tooltip">?<span class="tooltiptext" data-i18n-key="analysis.tooltip"></span></span></h2>
 
-            <h3>data-i18n="analysis.stats"</h3>
+            <h3><span data-i18n="analysis.stats" data-i18n-attr="textContent"></span></h3>
             <div class="stats-summary">
               <p id="hsvStats"></p>
               <p id="labStats"></p>
             </div>
 
             <div class="histograms-2d-viz">
-              <h3>data-i18n="analysis.distribution"</h3>
+              <h3><span data-i18n="analysis.distribution" data-i18n-attr="textContent"></span></h3>
               <div class="histograms-container">
                 <div class="chart-container">
                   <canvas id="histH" role="img" aria-label="Hue distribution histogram"></canvas>

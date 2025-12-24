@@ -1,7 +1,8 @@
 {
   "app": {
     "title": "Color Compass",
-    "description": "从图像中提取色板并使用 CIELAB 模型在 3D 中可视化色彩空间"
+    "description": "从图像中提取色板并使用 CIELAB 模型在 3D 中可视化色彩空间",
+    "performanceOptimization": "性能优化"
   },
   "upload": {
     "dragHint": "拖拽图片到此处或",
@@ -66,7 +67,17 @@
       "luminance": "明度 (L*)",
       "aAxis": "红-绿 (a*)",
       "bAxis": "黄-蓝 (b*)"
-    }
+    },
+    "noHueData": "无色相数据",
+    "noHSVData": "无HSV数据",
+    "noData": "无数据",
+    "noLabData": "无Lab数据",
+    "avg": "平均",
+    "stdDev": "标准差",
+    "avgHSV": "平均 HSV",
+    "stdDevHSV": "标准差",
+    "avgLab": "平均 Lab",
+    "stdDevLab": "标准差"
   },
   "advanced": {
     "title": "高级色彩分析",
@@ -126,14 +137,5 @@
   "version": {
     "label": "Git 版本：",
     "fetchFailed": "获取版本信息失败："
-  },
-  "analysis": {
-    "noHueData": "无色相数据",
-    "noHSVData": "无HSV数据",
-    "noData": "无数据",
-    "noLabData": "无Lab数据"
-  },
-  "app": {
-    "performanceOptimization": "性能优化"
   }
 }

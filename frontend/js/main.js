@@ -478,12 +478,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (colorStats) {
             // Display stats summary
             hsvStatsParagraph.textContent =
-              `平均 HSV: H=${colorStats.hsv.avg[0].toFixed(3)}, S=${colorStats.hsv.avg[1].toFixed(3)}, V=${colorStats.hsv.avg[2].toFixed(3)} ` +
-              `| 标准差: H=${colorStats.hsv.stdDev[0].toFixed(3)}, S=${colorStats.hsv.stdDev[1].toFixed(3)}, V=${colorStats.hsv.stdDev[2].toFixed(3)}`;
+              `${t('analysis.avgHSV')}: H=${colorStats.hsv.avg[0].toFixed(3)}, S=${colorStats.hsv.avg[1].toFixed(3)}, V=${colorStats.hsv.avg[2].toFixed(3)} ` +
+              `| ${t('analysis.stdDevHSV')}: H=${colorStats.hsv.stdDev[0].toFixed(3)}, S=${colorStats.hsv.stdDev[1].toFixed(3)}, V=${colorStats.hsv.stdDev[2].toFixed(3)}`;
 
             labStatsParagraph.textContent =
-              `平均 Lab: L*=${colorStats.lab.avg[0].toFixed(3)}, a*=${colorStats.lab.avg[1].toFixed(3)}, b*=${colorStats.lab.avg[2].toFixed(3)} ` +
-              `| 标准差: L*=${colorStats.lab.stdDev[0].toFixed(3)}, a*=${colorStats.lab.stdDev[1].toFixed(3)}, b*=${colorStats.lab.stdDev[2].toFixed(3)}`;
+              `${t('analysis.avgLab')}: L*=${colorStats.lab.avg[0].toFixed(3)}, a*=${colorStats.lab.avg[1].toFixed(3)}, b*=${colorStats.lab.avg[2].toFixed(3)} ` +
+              `| ${t('analysis.stdDevLab')}: L*=${colorStats.lab.stdDev[0].toFixed(3)}, a*=${colorStats.lab.stdDev[1].toFixed(3)}, b*=${colorStats.lab.stdDev[2].toFixed(3)}`;
 
             // Draw Histograms
             const binCount = 60; // Number of bars in histogram
@@ -511,7 +511,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Draw Hue Polar Chart
             if (huePolarCanvas) {
-              drawHuePolarChart(huePolarCanvas, colorStats.rawValues.h, '色相极坐标分布');
+              drawHuePolarChart(huePolarCanvas, colorStats.rawValues.h, t('advanced.charts.huePolar.title'));
             }
 
             // HSV Square Chart 已移除（数据格式不匹配且实用性有限）
@@ -519,12 +519,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Draw Color Distance Heatmap
             // Use actual dimensions (may be different from original if image was downsampled)
             if (distanceHeatmapCanvas && analyzedPalette) {
-              drawColorDistanceHeatmap(distanceHeatmapCanvas, analyzedPalette, pixelData, actualWidth, actualHeight, '色彩距离热力图');
+              drawColorDistanceHeatmap(distanceHeatmapCanvas, analyzedPalette, pixelData, actualWidth, actualHeight, t('advanced.charts.distanceHeatmap.title'));
             }
 
             // Draw Lab Density Chart
             if (labDensityCanvas) {
-              drawLabDensityChart(labDensityCanvas, colorStats.values, 'Lab密度分布');
+              drawLabDensityChart(labDensityCanvas, colorStats.values, t('advanced.charts.labDensity.title'));
             }
 
 
