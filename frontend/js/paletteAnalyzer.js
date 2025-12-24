@@ -64,7 +64,8 @@ export function analyzePalette (pixelData, dominantColors, paletteSize, maxHidde
 
   // Mark hidden colors (smallest clusters)
   const hiddenColorIndices = [];
-  for (let i = 0; i < Math.min(maxHiddenColors, dominantColors.length - maxBackgrounds); i++) {
+  const maxHiddenToCheck = Math.min(maxHiddenColors, sortedClusters.length);
+  for (let i = 0; i < maxHiddenToCheck; i++) {
     if (sortedClusters[i].percentage >= minHiddenPercentage || i === 0) {
       hiddenColorIndices.push(result.centroids.indexOf(sortedClusters[i].centroid));
     }
