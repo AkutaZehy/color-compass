@@ -11,15 +11,13 @@ import { rgbToHsv, rgbToLab } from './colorUtils.js'; // Import conversion funct
  * @returns {{hsv: {avg: number[], stdDev: number[]}, lab: {avg: number[], stdDev: number[]}, rawValues: object}|null} An object containing stats and raw values, or null on error.
  */
 export function calculateColorStats (pixelData, width, height, sampleFactor = 1) { // Export the function
-  if (!pixelData || pixelData.length === 0 || width === 0 || height === 0) {
+  if (!pixelData || pixelData.length === 0) {
     return null;
   }
 
-  const totalPixels = width * height;
-  if (pixelData.length !== totalPixels * 4) {
-    console.error("Pixel data size mismatch with image dimensions.");
-    return null;
-  }
+  // Calculate total pixels from actual pixelData length
+  // This handles cases where image was downsampled to non-integer dimensions
+  const totalPixels = Math.floor(pixelData.length / 4);
 
   // Arrays to accumulate values for stats and visualization
   const hValues = [];
