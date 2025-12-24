@@ -606,9 +606,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Reset to initial state (show upload area, hide all results)
   function resetToInitialState() {
-    // Reset image display
+    // Reset image display - temporarily remove handlers to prevent error triggering
+    uploadedImage.onload = null;
+    uploadedImage.onerror = null;
     uploadedImage.style.display = 'none';
-    uploadedImage.src = '';
+    uploadedImage.removeAttribute('src');
     imageDisplay.classList.remove('has-image');
 
     // Show upload area

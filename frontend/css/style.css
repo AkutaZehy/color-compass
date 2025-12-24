@@ -480,7 +480,7 @@ button:focus {
   border-radius: 8px;
   padding: 12px;
   position: absolute;
-  z-index: 1;
+  z-index: 1000;
   bottom: 125%;
   left: 50%;
   margin-left: -125px;
@@ -489,6 +489,7 @@ button:focus {
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
   font-size: 0.8em;
   line-height: 1.4;
+  pointer-events: none;
 }
 
 .tooltip:hover .tooltiptext {

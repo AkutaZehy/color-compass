@@ -16,6 +16,9 @@ export function loadImageAndDisplay (file, imgElement) {
       return;
     }
 
+    // Flag to track if we're in an error state to prevent repeated errors
+    let errorHandled = false;
+
     // Clear previous event handlers to prevent infinite error loops
     imgElement.onload = null;
     imgElement.onerror = null;
@@ -28,10 +31,14 @@ export function loadImageAndDisplay (file, imgElement) {
       imgElement.onload = function () {
         console.log(`Image loaded successfully: ${imgElement.naturalWidth}x${imgElement.naturalHeight}`);
         imgElement.style.display = 'block';
+        errorHandled = true; // Mark as handled
         resolve(imgElement);
       };
 
       imgElement.onerror = function () {
+        if (errorHandled) return; // Skip if already handled
+        errorHandled = true;
+
         console.error("Error loading image data URL into img element.");
         imgElement.style.display = 'none';
         imgElement.onload = null;
@@ -41,6 +48,9 @@ export function loadImageAndDisplay (file, imgElement) {
     };
 
     reader.onerror = function (e) {
+      if (errorHandled) return;
+      errorHandled = true;
+
       console.error("Error reading file with FileReader:", e);
       imgElement.style.display = 'none';
       reject(e);
