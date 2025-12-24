@@ -141,9 +141,11 @@ function kmeansClustering (pixelData, initialCentroids, maxIterations, options =
       });
 
       // Update label and cluster stats
-      if (labels[i / 4] !== bestCluster) {
+      // 注意：当使用超像素时，i是超像素索引；使用原始像素时，i是数据索引
+      const labelIndex = weights ? i : i / 4; // 超像素数据没有/4的转换
+      if (labels[labelIndex] !== bestCluster) {
         changed = true;
-        labels[i / 4] = bestCluster;
+        labels[labelIndex] = bestCluster;
       }
 
       const weight = weights ? weights[i] : 1;
