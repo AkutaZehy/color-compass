@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const paletteCanvas = document.getElementById('paletteCanvas'); // Palette canvas
   const reRenderPaletteBtn = document.getElementById('reRenderPaletteBtn'); // Re-render button
   const toggleAdvancedBtn = document.getElementById('toggleAdvancedBtn'); // Toggle advanced params
+  const resetParamsBtn = document.getElementById('resetParamsBtn'); // Reset parameters button
 
   // Parameter controls
   const paletteSizeInput = document.getElementById('paletteSize');
@@ -134,6 +135,9 @@ document.addEventListener('DOMContentLoaded', () => {
       advancedContent.style.display = isHidden ? 'block' : 'none';
       toggleAdvancedBtn.textContent = isHidden ? '隐藏高级参数' : '显示高级参数';
     });
+
+    // Reset parameters
+    resetParamsBtn.addEventListener('click', resetParamsToDefaults);
   }
 
   // Update params from control values
@@ -158,6 +162,42 @@ document.addEventListener('DOMContentLoaded', () => {
     maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
     backgroundVarianceScaleValue.textContent = paletteParams.backgroundVarianceScale.toFixed(1);
     useDeltaEValue.textContent = paletteParams.useDeltaE ? '开启' : '关闭';
+  }
+
+  // Reset parameters to defaults
+  function resetParamsToDefaults () {
+    const defaultParams = {
+      paletteSize: 20,
+      dominantColors: 8,
+      maxHiddenColors: 2,
+      minHiddenPercentage: 0.01,
+      superpixelCount: 200,
+      superpixelCompactness: 10,
+      maxBackgrounds: 3,
+      backgroundVarianceScale: 1,
+      useSuperpixels: true,
+      useDeltaE: false
+    };
+
+    // Update paletteParams
+    Object.assign(paletteParams, defaultParams);
+
+    // Update UI controls
+    paletteSizeInput.value = paletteParams.paletteSize;
+    dominantColorsInput.value = paletteParams.dominantColors;
+    maxHiddenColorsInput.value = paletteParams.maxHiddenColors;
+    minHiddenPercentageInput.value = paletteParams.minHiddenPercentage;
+    superpixelCountInput.value = paletteParams.superpixelCount;
+    superpixelCompactnessInput.value = paletteParams.superpixelCompactness;
+    maxBackgroundsInput.value = paletteParams.maxBackgrounds;
+    backgroundVarianceScaleInput.value = paletteParams.backgroundVarianceScale;
+    useDeltaEInput.checked = paletteParams.useDeltaE;
+
+    // Update displayed values
+    updateParamsFromControls();
+
+    console.log('Parameters reset to defaults');
+    alert('参数已重置为默认值');
   }
 
   // Initialize controls
