@@ -444,7 +444,7 @@ button:focus {
   accent-color: #6c63ff;
 }
 
-.param-group span {
+.param-group .param-value {
   flex: 0 0 50px;
   text-align: right;
   font-family: 'Monaco', monospace;
