@@ -4,6 +4,7 @@
 import * as THREE from '../lib/three/build/three.module.js';
 import { OrbitControls } from '../lib/three/examples/jsm/controls/OrbitControls.js';
 import { rgbToLab } from './colorUtils.js'; // Need Lab conversion
+import { t } from './i18n.js'; // Import i18n module
 
 
 let scene, camera, renderer, controls;
@@ -327,7 +328,7 @@ export function setupSphereScene (container, pixelData, imageWidth, imageHeight,
 export function exportSphereAsImage (renderer, scene, camera, filename = 'color_sphere.png') {
   if (!renderer || !renderer.domElement || !scene || !camera) {
     console.error("Cannot export: Three.js renderer, scene, or camera is not available.");
-    alert("3D 色球未生成，无法导出图片。");
+    alert(t('errors.noSphere'));
     return null;
   }
 
@@ -335,7 +336,7 @@ export function exportSphereAsImage (renderer, scene, camera, filename = 'color_
 
   if (canvasElement.width === 0 || canvasElement.height === 0) {
     console.error("Cannot export: 3D renderer canvas has zero dimensions.");
-    alert("3D 色球画布尺寸无效，无法导出。");
+    alert(t('errors.invalidSphereCanvas'));
     return null;
   }
 
@@ -350,7 +351,7 @@ export function exportSphereAsImage (renderer, scene, camera, filename = 'color_
     return dataUrl; // Return Data URL so main.js can use fileSaver
   } catch (e) {
     console.error("Error getting data URL from 3D canvas:", e);
-    alert("导出 3D 色球图片失败。");
+    alert(t('errors.sphereExportFailed'));
     return null;
   }
 }
