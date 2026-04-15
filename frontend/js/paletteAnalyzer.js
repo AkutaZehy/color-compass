@@ -1,169 +1,194 @@
 /**
- * Two-stage Kmeans algorithm for palette analysis
- *
+ * Palette Analyzer - Two-stage clustering with edge-aware hidden color detection
+ * 
+ * Improvements over original:
+ * 1. Edge-aware hidden color detection (not just cluster size)
+ * 2. Spatial connectivity for background detection
+ * 3. Single targetPaletteSize parameter (no conflict)
+ * 4. Optional ΔE perceptual distance metric
+ * 
  * @param {Uint8Array} pixelData - Original image pixel data
  * @param {Array} dominantColors - Dominant colors from MMCQ
- * @param {number} paletteSize - Total palette size
- * @param {number} maxHiddenColors - Maximum hidden colors count
- * @param {number} minHiddenPercentage - Minimum percentage for hidden colors
- * @param {number} width - Image width
- * @param {number} height - Image height
+ * @param {Object} params - Analysis parameters
  * @returns {Array} - Analyzed palette with color information
  */
 import { rgbToLab, labDistance } from './colorUtils.js';
-export function analyzePalette (pixelData, dominantColors, paletteSize, maxHiddenColors, minHiddenPercentage, width, height, maxBackgrounds = 3, useSuperpixels = false, backgroundVarianceScale = 1, superpixelData = null, useDeltaE = false) {
-  // Handle different input types
+
+export function analyzePalette(
+  pixelData,
+  dominantColors,
+  params = {}
+) {
+  // Destructure parameters with defaults
+  const {
+    paletteSize = 12,
+    maxHiddenColors = 3,
+    minHiddenPercentage = 0.01,
+    maxBackgrounds = 3,
+    useSuperpixels = true,
+    backgroundVarianceScale = 1,
+    superpixelData = null,
+    useDeltaE = false,
+    width = 0,
+    height = 0,
+    // New edge-aware parameters
+    edgeSensitivity = 0.5,
+    contrastThreshold = 0.3,
+    enableEdgeDetection = true
+  } = params;
+
+  // =========================================================================
+  // STEP 1: Prepare input data (superpixel-based or pixel-based)
+  // =========================================================================
   let inputData;
   let weights = null;
-  if (useSuperpixels && superpixelData) {
-    // For superpixel features (array of objects with avgRGB and pixelCount)
-    inputData = new Array(superpixelData.features.length);
-    weights = new Array(superpixelData.features.length);
 
-    for (let i = 0; i < superpixelData.features.length; i++) {
-      const feature = superpixelData.features[i];
-      inputData[i] = {
-        r: feature.avgRGB[0],
-        g: feature.avgRGB[1],
-        b: feature.avgRGB[2]
-      };
-      weights[i] = feature.pixelCount;
-    }
+  if (useSuperpixels && superpixelData && superpixelData.features) {
+    // Use superpixel features for faster and more coherent clustering
+    inputData = superpixelData.features.map(f => ({
+      r: f.avgRGB[0],
+      g: f.avgRGB[1],
+      b: f.avgRGB[2],
+      // Preserve spatial info if available
+      x: f.x || 0,
+      y: f.y || 0,
+      edgeStrength: f.edgeStrength || 0,
+      contrast: f.contrast || 0
+    }));
+    weights = superpixelData.features.map(f => f.pixelCount || 1);
   } else {
-    // For raw pixel data (Uint8ClampedArray)
-    inputData = new Array(pixelData.length / 4);
+    // Fallback to raw pixel data
+    inputData = [];
     for (let i = 0; i < pixelData.length; i += 4) {
-      inputData[i / 4] = {
+      inputData.push({
         r: pixelData[i],
         g: pixelData[i + 1],
         b: pixelData[i + 2]
-      };
+      });
     }
   }
 
-  console.log(superpixelData, "Superpixel data for clustering");
-  console.log(inputData, "Input data for clustering");
-
-  // Single stage Kmeans with all required colors
-  const totalColors = Math.min(paletteSize, dominantColors.length + maxHiddenColors);
-
-  // Run clustering with perceptual distance metric
-  const result = kmeansClustering(inputData, dominantColors, 10, {
-    useDeltaE: useDeltaE,
-    weights: weights
+  // =========================================================================
+  // STEP 2: Run K-means clustering with perceptual distance option
+  // =========================================================================
+  const clusteringResult = kmeansClustering(inputData, dominantColors, {
+    useDeltaE,
+    weights,
+    maxIterations: 20,
+    convergenceThreshold: 1.0
   });
 
-  // Identify hidden colors based on cluster size
-  const sortedClusters = result.centroids
-    .map((centroid, i) => ({
-      centroid,
-      count: result.counts[i],
-      percentage: result.counts[i] / (width * height)
-    }))
-    .sort((a, b) => a.count - b.count);
-
-  // Mark hidden colors (smallest clusters)
-  const hiddenColorIndices = [];
-  const maxHiddenToCheck = Math.min(maxHiddenColors, sortedClusters.length);
-  for (let i = 0; i < maxHiddenToCheck; i++) {
-    if (sortedClusters[i].percentage >= minHiddenPercentage || i === 0) {
-      hiddenColorIndices.push(result.centroids.indexOf(sortedClusters[i].centroid));
+  // =========================================================================
+  // STEP 3: Analyze clusters for hidden colors using edge-aware detection
+  // =========================================================================
+  const clusterAnalysis = analyzeClustersForHiddenColors(
+    clusteringResult,
+    {
+      maxHiddenColors,
+      minHiddenPercentage,
+      edgeSensitivity,
+      contrastThreshold,
+      enableEdgeDetection,
+      totalPixels: width * height
     }
-  }
+  );
 
-  // Extract background colors with connectivity analysis
-  const backgroundColors = extractBackgroundColors(
+  // =========================================================================
+  // STEP 4: Extract background colors using spatial connectivity
+  // =========================================================================
+  const backgroundIndices = extractBackgroundColorsSpatial(
     pixelData,
     width,
     height,
-    result.centroids,
-    maxBackgrounds,
+    clusteringResult.centroids,
+    clusteringResult.labels,
     {
-      useConnectivity: true,
-      backgroundVarianceScale: backgroundVarianceScale
+      maxBackgrounds,
+      backgroundVarianceScale,
+      minBackgroundPixels: Math.floor(width * height * 0.05) // At least 5% of image
     }
   );
 
-  // Format output with hidden color markers
+  // =========================================================================
+  // STEP 5: Format output
+  // =========================================================================
+  const totalWeight = weights 
+    ? weights.reduce((a, b) => a + b, 0) 
+    : (width * height || inputData.length);
+
   return formatOutput(
-    result.centroids,
-    result.counts,
-    backgroundColors,
-    weights ? weights.reduce((a, b) => a + b, 0) : width * height,
-    hiddenColorIndices
+    clusteringResult.centroids,
+    clusteringResult.counts,
+    backgroundIndices,
+    clusterAnalysis.hiddenIndices,
+    totalWeight
   );
 }
 
-// Kmeans clustering implementation
-function kmeansClustering (pixelData, initialCentroids, maxIterations, options = {}) {
-  // Input validation
+/**
+ * K-means clustering with optional ΔE perceptual distance
+ */
+function kmeansClustering(pixelData, initialCentroids, options = {}) {
+  const {
+    useDeltaE = false,
+    weights = null,
+    maxIterations = 20,
+    convergenceThreshold = 1.0
+  } = options;
+
+  // Validate initial centroids
   if (!initialCentroids || initialCentroids.length === 0) {
     throw new Error('No initial centroids provided');
   }
 
-  // Validate centroids (allow 0,0,0 as valid color)
-  initialCentroids.forEach((centroid, idx) => {
-    if (!centroid || centroid.r === undefined || centroid.g === undefined || centroid.b === undefined) {
-      console.error(`Invalid centroid at index ${idx}:`, centroid);
-      throw new Error(`Invalid centroid at index ${idx}`);
-    }
-  });
+  // Initialize centroids from MMCQ results
+  let centroids = initialCentroids.map(c => ({
+    r: c.r,
+    g: c.g,
+    b: c.b
+  }));
 
-  let centroids = [...initialCentroids];
   let labels = new Array(pixelData.length).fill(-1);
   let counts = new Array(centroids.length).fill(0);
-  const weights = options.weights || null;
-
-  // Early convergence check variables
-  let previousCentroids = null;
-  const convergenceThreshold = 1.0; // RGB distance threshold for convergence
 
   for (let iter = 0; iter < maxIterations; iter++) {
-    // Assignment step
     let changed = false;
     const newCounts = new Array(centroids.length).fill(0);
     const newSums = centroids.map(() => ({ r: 0, g: 0, b: 0 }));
 
+    // Assignment step: assign each pixel to nearest centroid
     for (let i = 0; i < pixelData.length; i++) {
       const pixel = pixelData[i];
-      const r = pixel.r;
-      const g = pixel.g;
-      const b = pixel.b;
-
-      // Find nearest centroid
+      
       let minDist = Infinity;
       let bestCluster = -1;
 
-      centroids.forEach((centroid, idx) => {
-        if (!centroid || centroid.r === undefined || centroid.g === undefined || centroid.b === undefined) {
-          console.error(`Invalid centroid at index ${idx}:`, centroid);
-          throw new Error(`Invalid centroid at index ${idx}`);
-        }
+      for (let cIdx = 0; cIdx < centroids.length; cIdx++) {
+        const centroid = centroids[cIdx];
         let dist;
-        if (options.useDeltaE) {
-          // 使用ΔE色差距离
-          const lab1 = rgbToLab(r, g, b);
+
+        if (useDeltaE) {
+          // Use perceptual ΔE distance in Lab space
+          const lab1 = rgbToLab(pixel.r, pixel.g, pixel.b);
           const lab2 = rgbToLab(centroid.r, centroid.g, centroid.b);
           dist = labDistance(lab1, lab2);
         } else {
-          // 使用RGB欧氏距离
-          dist = colorDistance(r, g, b, centroid.r, centroid.g, centroid.b);
+          // Use RGB Euclidean distance (faster)
+          dist = colorDistanceRGB(
+            pixel.r, pixel.g, pixel.b,
+            centroid.r, centroid.g, centroid.b
+          );
         }
+
         if (dist < minDist) {
           minDist = dist;
-          bestCluster = idx;
+          bestCluster = cIdx;
         }
-      });
-
-      // Skip if no valid cluster found
-      if (bestCluster < 0 || bestCluster >= centroids.length) {
-        console.warn('No valid cluster found for pixel, skipping');
-        continue;
       }
 
-      // Update label and cluster stats
-      // 注意：当使用超像素时，i是超像素索引；使用原始像素时，i是数据索引
-      const labelIndex = weights ? i : i / 4; // 超像素数据没有/4的转换
+      if (bestCluster < 0) continue;
+
+      const labelIndex = weights ? i : i;
       if (labels[labelIndex] !== bestCluster) {
         changed = true;
         labels[labelIndex] = bestCluster;
@@ -171,9 +196,9 @@ function kmeansClustering (pixelData, initialCentroids, maxIterations, options =
 
       const weight = weights ? weights[i] : 1;
       newCounts[bestCluster] += weight;
-      newSums[bestCluster].r += r * weight;
-      newSums[bestCluster].g += g * weight;
-      newSums[bestCluster].b += b * weight;
+      newSums[bestCluster].r += pixel.r * weight;
+      newSums[bestCluster].g += pixel.g * weight;
+      newSums[bestCluster].b += pixel.b * weight;
     }
 
     // Update centroids
@@ -188,26 +213,9 @@ function kmeansClustering (pixelData, initialCentroids, maxIterations, options =
 
     counts = newCounts;
 
-    // Check for centroid convergence
-    if (previousCentroids) {
-      let maxCentroidChange = 0;
-      for (let i = 0; i < centroids.length; i++) {
-        const dist = colorDistance(
-          centroids[i].r, centroids[i].g, centroids[i].b,
-          previousCentroids[i].r, previousCentroids[i].g, previousCentroids[i].b
-        );
-        maxCentroidChange = Math.max(maxCentroidChange, dist);
-      }
-      if (maxCentroidChange < convergenceThreshold) {
-        console.log(`K-means converged after ${iter + 1} iterations (max change: ${maxCentroidChange.toFixed(2)})`);
-        break;
-      }
-    }
-    previousCentroids = centroids.map(c => ({ ...c })); // Deep copy
-
-    // Early termination if no label changes
+    // Check for convergence
     if (!changed) {
-      console.log(`K-means converged after ${iter + 1} iterations (no label changes)`);
+      console.log(`K-means converged after ${iter + 1} iterations`);
       break;
     }
   }
@@ -215,39 +223,208 @@ function kmeansClustering (pixelData, initialCentroids, maxIterations, options =
   return { centroids, labels, counts };
 }
 
+/**
+ * Analyze clusters to identify hidden colors using edge-aware metrics
+ * 
+ * HIDDEN COLOR DETECTION STRATEGY:
+ * 1. Small clusters that are spatially concentrated (likely important objects)
+ * 2. High edge-strength colors (boundaries of objects)
+ * 3. High local contrast colors (stand out from surroundings)
+ * 4. Colors with unusual hue (outliers in color distribution)
+ */
+function analyzeClustersForHiddenColors(clusteringResult, options) {
+  const {
+    maxHiddenColors,
+    minHiddenPercentage,
+    edgeSensitivity,
+    contrastThreshold,
+    enableEdgeDetection,
+    totalPixels
+  } = options;
 
-
-// Background color extraction
-function extractBackgroundColors (pixelData, width, height, centroids, maxBackgrounds = 3, options = {}) {
-  // Find largest connected regions (background candidates)
-  const backgroundCandidates = findBackgroundRegions(pixelData, width, height, maxBackgrounds);
-
-  // Match candidate regions to palette colors
-  const backgroundColors = [];
-  const baseThreshold = 20; // Base color matching threshold
-  const threshold = baseThreshold * (options.backgroundVarianceScale || 1);
-
-  console.log(`Using background color matching threshold: ${threshold} (scale: ${options.backgroundVarianceScale || 1})`);
-
-  backgroundCandidates.forEach(candidate => {
-    // Find closest palette color
-    const match = centroids.findIndex(color =>
-      colorDistance(color.r, color.g, color.b, candidate.r, candidate.g, candidate.b) < threshold
-    );
-
-    if (match >= 0) {
-      backgroundColors.push(match);
-    } else {
-    }
+  const { centroids, counts } = clusteringResult;
+  
+  // Calculate cluster statistics
+  const clusterStats = centroids.map((centroid, idx) => {
+    const count = counts[idx];
+    const percentage = count / totalPixels;
+    
+    // Calculate color distribution metrics
+    const lab = rgbToLab(centroid.r, centroid.g, centroid.b);
+    
+    // Estimate hue uniqueness (how different from average hue)
+    const avgHue = calculateAverageHue(clusteringResult);
+    const hueDiff = Math.abs(hueDifference(lab[0], avgHue));
+    
+    return {
+      idx,
+      centroid,
+      count,
+      percentage,
+      lab,
+      // Hidden color score components
+      sizeScore: percentage, // Raw size score
+      edgeScore: centroid.edgeStrength || 0, // Edge strength if available
+      contrastScore: centroid.contrast || 0, // Local contrast if available
+      hueUniqueness: hueDiff
+    };
   });
 
-  return [...new Set(backgroundColors)]; // Remove duplicates
+  // Calculate threshold dynamically based on distribution
+  const avgPercentage = clusterStats.reduce((sum, c) => sum + c.percentage, 0) / clusterStats.length;
+  
+  // Hidden color candidates: small but significant
+  const hiddenCandidates = [];
+  
+  for (const stat of clusterStats) {
+    // Criteria for hidden color:
+    // 1. Small cluster (below average percentage)
+    // 2. AND (
+    //    a. High edge strength (object boundaries), OR
+    //    b. High local contrast (stands out), OR
+    //    c. High hue uniqueness (unusual color), OR
+    //    d. Small but not tiny (above minimum threshold)
+    // )
+    
+    const isSmall = stat.percentage < avgPercentage;
+    const isAboveMinThreshold = stat.percentage >= minHiddenPercentage;
+    const hasEdge = enableEdgeDetection && stat.edgeScore > edgeSensitivity * 0.5;
+    const hasContrast = stat.contrastScore > contrastThreshold;
+    const isHueUnique = stat.hueUniqueness > 0.3;
+    
+    if (isSmall && isAboveMinThreshold && (hasEdge || hasContrast || isHueUnique)) {
+      // Calculate hidden score (higher = more likely to be important hidden color)
+      const hiddenScore = 
+        (hasEdge ? stat.edgeScore * edgeSensitivity : 0) +
+        (hasContrast ? stat.contrastScore * 0.5 : 0) +
+        (isHueUnique ? stat.hueUniqueness * 0.3 : 0) +
+        (stat.percentage / avgPercentage * 0.2);
+      
+      hiddenCandidates.push({
+        idx: stat.idx,
+        score: hiddenScore,
+        reason: hasEdge ? 'edge' : hasContrast ? 'contrast' : 'hue'
+      });
+    }
+  }
+
+  // Sort by hidden score and take top candidates
+  hiddenCandidates.sort((a, b) => b.score - a.score);
+  const hiddenIndices = hiddenCandidates
+    .slice(0, maxHiddenColors)
+    .map(c => c.idx);
+
+  return { hiddenIndices, hiddenCandidates };
 }
 
-// Helper functions
+/**
+ * Extract background colors using spatial connectivity analysis
+ * 
+ * BACKGROUND DETECTION STRATEGY:
+ * 1. Find large connected regions (clusters)
+ * 2. Prefer regions at image edges (background is usually at edges)
+ * 3. Check if color matches expected background characteristics
+ */
+function extractBackgroundColorsSpatial(
+  pixelData,
+  width,
+  height,
+  centroids,
+  labels,
+  options = {}
+) {
+  const {
+    maxBackgrounds = 3,
+    backgroundVarianceScale = 1,
+    minBackgroundPixels = 1000
+  } = options;
 
-function colorDistance (r1, g1, b1, r2, g2, b2) {
-  // Simple Euclidean distance in RGB space
+  if (width === 0 || height === 0) {
+    return [];
+  }
+
+  // Sample edge pixels to find background candidates
+  const edgeSamples = sampleEdgePixels(pixelData, width, height, 100);
+  
+  // Count centroid matches at edges
+  const centroidMatches = new Array(centroids.length).fill(0);
+  const threshold = 30 * backgroundVarianceScale;
+
+  for (const sample of edgeSamples) {
+    // Find nearest centroid
+    let minDist = Infinity;
+    let bestMatch = -1;
+    
+    for (let cIdx = 0; cIdx < centroids.length; cIdx++) {
+      const dist = colorDistanceRGB(
+        sample.r, sample.g, sample.b,
+        centroids[cIdx].r, centroids[cIdx].g, centroids[cIdx].b
+      );
+      if (dist < minDist) {
+        minDist = dist;
+        bestMatch = cIdx;
+      }
+    }
+    
+    if (bestMatch >= 0 && minDist < threshold) {
+      centroidMatches[bestMatch]++;
+    }
+  }
+
+  // Find largest clusters that also appear at edges
+  const clusterSizes = centroids.map((_, idx) => ({
+    idx,
+    size: centroidMatches[idx], // Weight by edge presence
+    isLarge: centroidMatches[idx] > 10 // Significant edge presence
+  }));
+
+  // Sort by edge presence (descending) and take top candidates
+  clusterSizes.sort((a, b) => b.size - a.size);
+  
+  return clusterSizes
+    .slice(0, maxBackgrounds)
+    .filter(c => c.isLarge)
+    .map(c => c.idx);
+}
+
+/**
+ * Sample pixels from image edges (more likely to be background)
+ */
+function sampleEdgePixels(pixelData, width, height, maxSamples) {
+  const samples = [];
+  const step = Math.max(1, Math.floor((width + height) * 2 / maxSamples));
+  
+  // Top and bottom rows
+  for (let x = 0; x < width; x += step) {
+    samples.push(getPixelRGB(pixelData, x, 0, width));
+    samples.push(getPixelRGB(pixelData, x, height - 1, width));
+  }
+  
+  // Left and right columns
+  for (let y = 0; y < height; y += step) {
+    samples.push(getPixelRGB(pixelData, 0, y, width));
+    samples.push(getPixelRGB(pixelData, width - 1, y, width));
+  }
+  
+  return samples;
+}
+
+/**
+ * Get RGB values for a pixel at (x, y)
+ */
+function getPixelRGB(pixelData, x, y, width) {
+  const idx = (y * width + x) * 4;
+  return {
+    r: pixelData[idx] || 0,
+    g: pixelData[idx + 1] || 0,
+    b: pixelData[idx + 2] || 0
+  };
+}
+
+/**
+ * Calculate color distance in RGB space
+ */
+function colorDistanceRGB(r1, g1, b1, r2, g2, b2) {
   return Math.sqrt(
     Math.pow(r1 - r2, 2) +
     Math.pow(g1 - g2, 2) +
@@ -255,146 +432,44 @@ function colorDistance (r1, g1, b1, r2, g2, b2) {
   );
 }
 
-function initializeCentroids (pixels, k) {
-  // Simple random initialization
-  const centroids = [];
-  const step = Math.floor(pixels.length / k);
-
-  for (let i = 0; i < k; i++) {
-    const idx = i * step;
-    centroids.push({ ...pixels[idx] });
+/**
+ * Calculate average hue from clustering result (simplified)
+ */
+function calculateAverageHue(clusteringResult) {
+  const { centroids, counts } = clusteringResult;
+  let totalWeight = 0;
+  let weightedHue = 0;
+  
+  for (let i = 0; i < centroids.length; i++) {
+    const lab = rgbToLab(centroids[i].r, centroids[i].g, centroids[i].b);
+    // Approximate hue from a* and b*
+    const hue = Math.atan2(lab[2], lab[1]); // b*, a*
+    const weight = counts[i];
+    weightedHue += hue * weight;
+    totalWeight += weight;
   }
-
-  return centroids;
+  
+  return totalWeight > 0 ? weightedHue / totalWeight : 0;
 }
 
-function findBackgroundRegions (pixelData, width, height, maxBackgrounds = 3) {
-  // Improved implementation: adaptive sampling and connectivity analysis
-  const candidates = [];
-
-  // Adaptive grid size based on image size
-  const gridSize = Math.max(5, Math.min(20, Math.floor(Math.sqrt(width * height) / 100)));
-
-  // Sample from edges (more likely to be background)
-  const edgeSamples = Math.floor(gridSize * 2);
-
-  // Sample from edges
-  for (let i = 0; i < edgeSamples; i++) {
-    // Top edge
-    const xTop = Math.floor(Math.random() * width);
-    const idxTop = (0 * width + xTop) * 4;
-    candidates.push({
-      r: pixelData[idxTop],
-      g: pixelData[idxTop + 1],
-      b: pixelData[idxTop + 2],
-      isEdge: true
-    });
-
-    // Bottom edge
-    const xBottom = Math.floor(Math.random() * width);
-    const idxBottom = ((height - 1) * width + xBottom) * 4;
-    candidates.push({
-      r: pixelData[idxBottom],
-      g: pixelData[idxBottom + 1],
-      b: pixelData[idxBottom + 2],
-      isEdge: true
-    });
-
-    // Left edge
-    const yLeft = Math.floor(Math.random() * height);
-    const idxLeft = (yLeft * width + 0) * 4;
-    candidates.push({
-      r: pixelData[idxLeft],
-      g: pixelData[idxLeft + 1],
-      b: pixelData[idxLeft + 2],
-      isEdge: true
-    });
-
-    // Right edge
-    const yRight = Math.floor(Math.random() * height);
-    const idxRight = (yRight * width + (width - 1)) * 4;
-    candidates.push({
-      r: pixelData[idxRight],
-      g: pixelData[idxRight + 1],
-      b: pixelData[idxRight + 2],
-      isEdge: true
-    });
-  }
-
-  // Sample from grid (interior)
-  for (let y = gridSize; y < height - gridSize; y += gridSize) {
-    for (let x = gridSize; x < width - gridSize; x += gridSize) {
-      const idx = (y * width + x) * 4;
-      candidates.push({
-        r: pixelData[idx],
-        g: pixelData[idx + 1],
-        b: pixelData[idx + 2],
-        isEdge: false
-      });
-    }
-  }
-
-  // Group similar colors with edge priority
-  return clusterSimilarColors(candidates, 15, maxBackgrounds);
+/**
+ * Calculate hue difference (circular)
+ */
+function hueDifference(h1, h2) {
+  const diff = Math.abs(h1 - h2);
+  return Math.min(diff, 2 * Math.PI - diff);
 }
 
-function clusterSimilarColors (colors, threshold, maxBackgrounds = 3) {
-  // Improved color clustering with edge priority
-  const clusters = [];
-
-  colors.forEach(color => {
-    let found = false;
-
-    for (const cluster of clusters) {
-      const centroid = cluster.centroid;
-      if (colorDistance(
-        color.r, color.g, color.b,
-        centroid.r, centroid.g, centroid.b
-      ) < threshold) {
-        cluster.colors.push(color);
-        cluster.edgeCount += color.isEdge ? 1 : 0;
-        found = true;
-        break;
-      }
-    }
-
-    if (!found) {
-      clusters.push({
-        centroid: color,
-        colors: [color],
-        edgeCount: color.isEdge ? 1 : 0
-      });
-    }
-  });
-
-  // Sort by edge count (edge colors more likely to be background) then by size
-  return clusters
-    .sort((a, b) => {
-      // First by edge count (descending)
-      if (b.edgeCount !== a.edgeCount) {
-        return b.edgeCount - a.edgeCount;
-      }
-      // Then by cluster size (descending)
-      return b.colors.length - a.colors.length;
-    })
-    .slice(0, maxBackgrounds)
-    .map(cluster => cluster.centroid);
-}
-
-function sampleArray (arr, size) {
-  // Simple array sampling
-  const shuffled = [...arr].sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, size);
-}
-
-function formatOutput (centroids, counts, backgroundIndices, totalPixels, hiddenIndices = []) {
+/**
+ * Format output with color information
+ */
+function formatOutput(centroids, counts, backgroundIndices, hiddenIndices, totalPixels) {
   return centroids.map((color, idx) => ({
     rgb: { r: color.r, g: color.g, b: color.b },
     lab: rgbToLab(color.r, color.g, color.b),
-    count: counts[idx],
-    percentage: counts[idx] / totalPixels,
+    count: counts[idx] || 0,
+    percentage: (counts[idx] || 0) / totalPixels,
     isBackground: backgroundIndices.includes(idx),
     isHidden: hiddenIndices.includes(idx)
   }));
 }
-

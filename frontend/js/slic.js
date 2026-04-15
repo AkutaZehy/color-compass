@@ -1,425 +1,501 @@
-
-
 /**
- * SLIC (Simple Linear Iterative Clustering) superpixel algorithm implementation
+ * SLIC (Simple Linear Iterative Clustering) superpixel algorithm
+ * 
+ * Enhanced version with:
+ * - Edge strength calculation for hidden color detection
+ * - Local contrast estimation
+ * - Spatial position preservation for background detection
  * 
  * @param {Uint8Array} pixelData - Image pixel data in RGBA format
  * @param {number} width - Image width
  * @param {number} height - Image height 
  * @param {number} superpixelCount - Desired number of superpixels
- * @param {number} compactness - Compactness factor (balance between color and spatial proximity)
- * @returns {Object} - Superpixel data containing labels and features
+ * @param {number} compactness - Compactness factor (balance color vs spatial)
+ * @returns {Object} - Superpixel data with enhanced features
  */
-function downsampleImage (pixelData, width, height, maxPixels = 1e5) {
-    // Calculate downsampling ratio to keep total pixels <= maxPixels
-    const ratio = Math.sqrt((width * height) / maxPixels);
-    const newWidth = Math.max(1, Math.floor(width / ratio));
-    const newHeight = Math.max(1, Math.floor(height / ratio));
+export function applySLIC(pixelData, width, height, superpixelCount, compactness) {
+  // Downsample large images for performance
+  let workingData = { data: pixelData, width, height };
+  if (width * height > 1e5) {
+    workingData = downsampleImage(pixelData, width, height);
+  }
 
-    const downsampled = new Uint8Array(newWidth * newHeight * 4);
+  // Initialize cluster centers
+  const clusterCenters = initializeClusterCenters(
+    workingData.data, 
+    workingData.width, 
+    workingData.height, 
+    superpixelCount
+  );
 
-    // Max pooling downsampling
-    const xRatio = width / newWidth;
-    const yRatio = height / newHeight;
+  // Assign pixels to clusters with iterative refinement
+  const labels = assignPixelsToClusters(
+    workingData.data, 
+    workingData.width, 
+    workingData.height, 
+    clusterCenters, 
+    compactness
+  );
 
-    for (let y = 0; y < newHeight; y++) {
-        for (let x = 0; x < newWidth; x++) {
-            const srcX = Math.floor(x * xRatio);
-            const srcY = Math.floor(y * yRatio);
-            const srcEndX = Math.min(width, Math.ceil((x + 1) * xRatio));
-            const srcEndY = Math.min(height, Math.ceil((y + 1) * yRatio));
+  // Enforce connectivity to avoid orphaned pixels
+  const cleanedLabels = enforceConnectivity(
+    labels, 
+    workingData.width, 
+    workingData.height
+  );
 
-            // Find max RGB values in the pooling window
-            let maxR = 0, maxG = 0, maxB = 0;
-            for (let sy = srcY; sy < srcEndY; sy++) {
-                for (let sx = srcX; sx < srcEndX; sx++) {
-                    const idx = (sy * width + sx) * 4;
-                    maxR = Math.max(maxR, pixelData[idx]);
-                    maxG = Math.max(maxG, pixelData[idx + 1]);
-                    maxB = Math.max(maxB, pixelData[idx + 2]);
-                }
-            }
+  // Upscale labels back to original size if downsampled
+  let finalLabels = cleanedLabels;
+  let scaleRatio = 1;
+  if (workingData.width !== width || workingData.height !== height) {
+    finalLabels = upscaleLabels(cleanedLabels, workingData.width, workingData.height, width, height);
+    scaleRatio = width / workingData.width;
+  }
 
-            const dstIdx = (y * newWidth + x) * 4;
-            downsampled[dstIdx] = maxR;
-            downsampled[dstIdx + 1] = maxG;
-            downsampled[dstIdx + 2] = maxB;
-            downsampled[dstIdx + 3] = 255; // Alpha
-        }
-    }
+  // Extract enhanced features including edge strength and contrast
+  const features = extractSuperpixelFeaturesEnhanced(
+    pixelData,
+    finalLabels,
+    width,
+    height,
+    clusterCenters.length,
+    scaleRatio
+  );
 
-    return {
-        data: downsampled,
-        width: newWidth,
-        height: newHeight
-    };
+  return {
+    labels: finalLabels,
+    features: features,
+    superpixelCount: features.length
+  };
 }
 
-function upscaleLabels (labels, srcWidth, srcHeight, dstWidth, dstHeight) {
-    const upscaled = new Int32Array(dstWidth * dstHeight);
-    const xRatio = srcWidth / dstWidth;
-    const yRatio = srcHeight / dstHeight;
+/**
+ * Downsample image using max pooling for better edge preservation
+ */
+function downsampleImage(pixelData, width, height, maxPixels = 1e5) {
+  const ratio = Math.sqrt((width * height) / maxPixels);
+  const newWidth = Math.max(1, Math.floor(width / ratio));
+  const newHeight = Math.max(1, Math.floor(height / ratio));
 
-    for (let y = 0; y < dstHeight; y++) {
-        for (let x = 0; x < dstWidth; x++) {
-            const srcX = Math.floor(x * xRatio);
-            const srcY = Math.floor(y * yRatio);
-            const srcIdx = srcY * srcWidth + srcX;
-            const dstIdx = y * dstWidth + x;
-            upscaled[dstIdx] = labels[srcIdx];
+  const downsampled = new Uint8Array(newWidth * newHeight * 4);
+  const xRatio = width / newWidth;
+  const yRatio = height / newHeight;
+
+  for (let y = 0; y < newHeight; y++) {
+    for (let x = 0; x < newWidth; x++) {
+      const srcX = Math.floor(x * xRatio);
+      const srcY = Math.floor(y * yRatio);
+      const srcEndX = Math.min(width, Math.ceil((x + 1) * xRatio));
+      const srcEndY = Math.min(height, Math.ceil((y + 1) * yRatio));
+
+      // Max pooling for edge preservation
+      let maxR = 0, maxG = 0, maxB = 0;
+      for (let sy = srcY; sy < srcEndY; sy++) {
+        for (let sx = srcX; sx < srcEndX; sx++) {
+          const idx = (sy * width + sx) * 4;
+          maxR = Math.max(maxR, pixelData[idx]);
+          maxG = Math.max(maxG, pixelData[idx + 1]);
+          maxB = Math.max(maxB, pixelData[idx + 2]);
         }
-    }
+      }
 
-    return upscaled;
+      const dstIdx = (y * newWidth + x) * 4;
+      downsampled[dstIdx] = maxR;
+      downsampled[dstIdx + 1] = maxG;
+      downsampled[dstIdx + 2] = maxB;
+      downsampled[dstIdx + 3] = 255;
+    }
+  }
+
+  return { data: downsampled, width: newWidth, height: newHeight };
 }
 
-export function applySLIC (pixelData, width, height, superpixelCount, compactness) {
-    // Downsample large images to improve performance
-    let downsampled = { data: pixelData, width, height };
-    if (width * height > 1e5) {
-        downsampled = downsampleImage(pixelData, width, height);
+/**
+ * Upscale labels using nearest-neighbor interpolation
+ */
+function upscaleLabels(labels, srcWidth, srcHeight, dstWidth, dstHeight) {
+  const upscaled = new Int32Array(dstWidth * dstHeight);
+  const xRatio = srcWidth / dstWidth;
+  const yRatio = srcHeight / dstHeight;
+
+  for (let y = 0; y < dstHeight; y++) {
+    for (let x = 0; x < dstWidth; x++) {
+      const srcX = Math.floor(x * xRatio);
+      const srcY = Math.floor(y * yRatio);
+      const srcIdx = srcY * srcWidth + srcX;
+      upscaled[y * dstWidth + x] = labels[srcIdx];
     }
+  }
 
-    // Initialize cluster centers (superpixel seeds)
-    const clusterCenters = initializeClusterCenters(downsampled.data, downsampled.width, downsampled.height, superpixelCount);
-
-    // Assign pixels to nearest cluster
-    const labels = assignPixelsToClusters(downsampled.data, downsampled.width, downsampled.height, clusterCenters, compactness);
-
-    // Enforce connectivity and remove small segments
-    const cleanedLabels = enforceConnectivity(labels, downsampled.width, downsampled.height);
-
-    // Upscale labels back to original size if downsampled
-    let finalLabels = cleanedLabels;
-    if (downsampled.width !== width || downsampled.height !== height) {
-        finalLabels = upscaleLabels(cleanedLabels, downsampled.width, downsampled.height, width, height);
-    }
-
-    return {
-        labels: finalLabels,
-        features: extractSuperpixelFeatures(pixelData, finalLabels, clusterCenters.length)
-    };
+  return upscaled;
 }
 
-// Helper functions
+/**
+ * Initialize cluster centers with gradient adjustment
+ */
+function initializeClusterCenters(rgbData, width, height, superpixelCount) {
+  const clusterCenters = [];
+  const step = Math.sqrt((width * height) / superpixelCount);
 
-
-
-function calculateGradient (rgbData, width, height, x, y) {
-    // Calculate gradient in RGB color space (luminance approximation)
-    // Using central differences in 3x3 neighborhood
-    if (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1) {
-        return Infinity; // Border pixels have high gradient
+  for (let y = Math.floor(step / 2); y < height; y += step) {
+    for (let x = Math.floor(step / 2); x < width; x += step) {
+      // Move center to lowest gradient position in 3x3 neighborhood
+      const adjusted = findLowestGradientNeighbor(rgbData, width, height, x, y);
+      clusterCenters.push({
+        x: adjusted.x,
+        y: adjusted.y,
+        r: adjusted.r,
+        g: adjusted.g,
+        b: adjusted.b
+      });
     }
+  }
 
-    const idx = y * width + x;
-    const idxLeft = y * width + (x - 1);
-    const idxRight = y * width + (x + 1);
-    const idxTop = (y - 1) * width + x;
-    const idxBottom = (y + 1) * width + x;
-
-    // Calculate luminance (approximate: 0.299*R + 0.587*G + 0.114*B)
-    const getLuminance = (index) => {
-        const r = rgbData[index * 4];
-        const g = rgbData[index * 4 + 1];
-        const b = rgbData[index * 4 + 2];
-        return 0.299 * r + 0.587 * g + 0.114 * b;
-    };
-
-    const dx = getLuminance(idxRight) - getLuminance(idxLeft);
-    const dy = getLuminance(idxBottom) - getLuminance(idxTop);
-
-    return dx * dx + dy * dy; // Gradient magnitude squared
+  return clusterCenters;
 }
 
-function findLowestGradientNeighbor (rgbData, width, height, x, y) {
-    let minGradient = Infinity;
-    let bestX = x;
-    let bestY = y;
+/**
+ * Find position with lowest gradient in 3x3 neighborhood
+ */
+function findLowestGradientNeighbor(rgbData, width, height, x, y) {
+  let minGradient = Infinity;
+  let bestX = x, bestY = y;
 
-    // Search in 3x3 neighborhood
-    for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-            const nx = x + dx;
-            const ny = y + dy;
-
-            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                const gradient = calculateGradient(rgbData, width, height, nx, ny);
-                if (gradient < minGradient) {
-                    minGradient = gradient;
-                    bestX = nx;
-                    bestY = ny;
-                }
-            }
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+        const gradient = calculateGradient(rgbData, width, height, nx, ny);
+        if (gradient < minGradient) {
+          minGradient = gradient;
+          bestX = nx;
+          bestY = ny;
         }
+      }
     }
+  }
 
-    // Get RGB values at best position
-    const idx = bestY * width + bestX;
-    const rgbOffset = idx * 4;
-
-    // Return RGB values instead of LAB
-    return {
-        x: bestX,
-        y: bestY,
-        r: rgbData[rgbOffset] || 0,
-        g: rgbData[rgbOffset + 1] || 0,
-        b: rgbData[rgbOffset + 2] || 0
-    };
+  const idx = bestY * width + bestX;
+  return {
+    x: bestX,
+    y: bestY,
+    r: rgbData[idx * 4],
+    g: rgbData[idx * 4 + 1],
+    b: rgbData[idx * 4 + 2]
+  };
 }
 
-function initializeClusterCenters (rgbData, width, height, superpixelCount) {
-    const clusterCenters = [];
-    const step = Math.sqrt((width * height) / superpixelCount);
+/**
+ * Calculate gradient magnitude using Sobel-like operator
+ */
+function calculateGradient(rgbData, width, height, x, y) {
+  if (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1) {
+    return Infinity;
+  }
 
-    for (let y = Math.floor(step / 2); y < height; y += step) {
-        for (let x = Math.floor(step / 2); x < width; x += step) {
-            // Adjust center to lowest gradient position in 3x3 neighborhood
-            const adjustedCenter = findLowestGradientNeighbor(rgbData, width, height, x, y);
-            clusterCenters.push({
-                x: adjustedCenter.x,
-                y: adjustedCenter.y,
-                r: adjustedCenter.r,
-                g: adjustedCenter.g,
-                b: adjustedCenter.b
-            });
-        }
-    }
+  // Get luminance values
+  const getLuminance = (px, py) => {
+    const idx = (py * width + px) * 4;
+    return 0.299 * rgbData[idx] + 0.587 * rgbData[idx + 1] + 0.114 * rgbData[idx + 2];
+  };
 
-    return clusterCenters;
+  const dx = getLuminance(x + 1, y) - getLuminance(x - 1, y);
+  const dy = getLuminance(x, y + 1) - getLuminance(x, y - 1);
+
+  return dx * dx + dy * dy;
 }
 
-function updateClusterCenters (rgbData, width, height, labels, clusterCount) {
-    const centers = new Array(clusterCount);
-    const counts = new Array(clusterCount).fill(0);
+/**
+ * Assign pixels to nearest cluster centers
+ */
+function assignPixelsToClusters(rgbData, width, height, clusterCenters, compactness) {
+  const labels = new Int32Array(width * height).fill(-1);
+  const distances = new Float32Array(width * height).fill(Infinity);
+  const step = Math.sqrt((width * height) / clusterCenters.length);
 
-    // Initialize centers
-    for (let i = 0; i < clusterCount; i++) {
-        centers[i] = { x: 0, y: 0, r: 0, g: 0, b: 0 };
-    }
+  let previousLabels = null;
+  
+  for (let iter = 0; iter < 10; iter++) {
+    clusterCenters.forEach((center, clusterIdx) => {
+      if (!center) return;
 
-    // Accumulate positions and colors
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            const idx = y * width + x;
-            const label = labels[idx];
+      const searchRegion = Math.floor(2 * step);
 
-            if (label >= 0 && label < clusterCount) {
-                const rgbOffset = idx * 4;
-                centers[label].x += x;
-                centers[label].y += y;
-                centers[label].r += rgbData[rgbOffset];
-                centers[label].g += rgbData[rgbOffset + 1];
-                centers[label].b += rgbData[rgbOffset + 2];
-                counts[label]++;
-            }
+      for (let y = Math.max(0, Math.floor(center.y) - searchRegion);
+           y < Math.min(height, Math.floor(center.y) + searchRegion); y++) {
+        for (let x = Math.max(0, Math.floor(center.x) - searchRegion);
+             x < Math.min(width, Math.floor(center.x) + searchRegion); x++) {
+          const pixelIdx = y * width + x;
+
+          // Color distance in RGB space
+          const r = rgbData[pixelIdx * 4];
+          const g = rgbData[pixelIdx * 4 + 1];
+          const b = rgbData[pixelIdx * 4 + 2];
+          
+          const colorDist = Math.pow(r - center.r, 2) +
+                           Math.pow(g - center.g, 2) +
+                           Math.pow(b - center.b, 2);
+
+          // Spatial distance (normalized)
+          const dx = x - center.x;
+          const dy = y - center.y;
+          const spatialDist = dx * dx + dy * dy;
+
+          // Combined distance with compactness factor
+          const distance = colorDist + (compactness / (step * step)) * spatialDist;
+
+          if (distance < distances[pixelIdx]) {
+            distances[pixelIdx] = distance;
+            labels[pixelIdx] = clusterIdx;
+          }
         }
-    }
-
-    // Normalize to get averages
-    const updatedCenters = [];
-    for (let i = 0; i < clusterCount; i++) {
-        if (counts[i] > 0) {
-            updatedCenters.push({
-                x: centers[i].x / counts[i],
-                y: centers[i].y / counts[i],
-                r: centers[i].r / counts[i],
-                g: centers[i].g / counts[i],
-                b: centers[i].b / counts[i]
-            });
-        } else {
-            // If cluster is empty, keep previous center
-            updatedCenters.push(null);
-        }
-    }
-
-    return updatedCenters;
-}
-
-function assignPixelsToClusters (downsampledData, width, height, clusterCenters, compactness) {
-    const labels = new Int32Array(width * height).fill(-1);
-    const distances = new Float32Array(width * height).fill(Infinity);
-    const step = Math.sqrt((width * height) / clusterCenters.length);
-
-    let previousLabels = null;
-    for (let iter = 0; iter < 10; iter++) {
-        clusterCenters.forEach((center, clusterIdx) => {
-            if (!center) return; // Skip empty clusters
-
-            const searchRegion = Math.floor(2 * step);
-
-            for (let y = Math.max(0, Math.floor(center.y) - searchRegion);
-                y < Math.min(height, Math.floor(center.y) + searchRegion); y++) {
-                for (let x = Math.max(0, Math.floor(center.x) - searchRegion);
-                    x < Math.min(width, Math.floor(center.x) + searchRegion); x++) {
-                    const pixelIdx = y * width + x;
-                    const labOffset = pixelIdx * 3;
-
-                    // 预计算常用值
-                    const dx = x - center.x;
-                    const dy = y - center.y;
-
-                    // 优化距离计算 - 直接在RGB空间计算
-                    const r = downsampledData[pixelIdx * 4];
-                    const g = downsampledData[pixelIdx * 4 + 1];
-                    const b = downsampledData[pixelIdx * 4 + 2];
-                    const colorDist = Math.pow(r - center.r, 2) +
-                        Math.pow(g - center.g, 2) +
-                        Math.pow(b - center.b, 2);
-
-                    const spatialDist = dx * dx + dy * dy; // 使用平方距离避免平方根
-
-                    // 预计算归一化因子
-                    // 使用完整的compactness范围(1-50)，避免硬编码限制
-                    const normalizedFactor = compactness / (step * step);
-                    const distance = colorDist + normalizedFactor * spatialDist;
-                    if (distance < distances[pixelIdx]) {
-                        distances[pixelIdx] = distance;
-                        labels[pixelIdx] = clusterIdx;
-                    }
-                }
-            }
-        });
-
-        // Check for convergence
-        if (previousLabels) {
-            let changed = false;
-            for (let i = 0; i < labels.length; i++) {
-                if (labels[i] !== previousLabels[i]) {
-                    changed = true;
-                    break;
-                }
-            }
-            if (!changed) {
-                console.log(`SLIC converged after ${iter + 1} iterations`);
-                break;
-            }
-        }
-        previousLabels = labels.slice(); // Copy current labels
-
-        // Update cluster centers
-        const newCenters = updateClusterCenters(downsampledData, width, height, labels, clusterCenters.length);
-        clusterCenters = newCenters.map((center, i) => center || clusterCenters[i]);
-    }
-
-    return labels;
-}
-
-function floodFill (labels, width, height, startX, startY, targetLabel) {
-    const segment = [];
-    const queue = [];
-    const visited = new Uint8Array(width * height);
-
-    // Check if starting position is valid
-    if (startX < 0 || startX >= width || startY < 0 || startY >= height) {
-        return segment;
-    }
-
-    const startIdx = startY * width + startX;
-    if (labels[startIdx] !== targetLabel || visited[startIdx]) {
-        return segment;
-    }
-
-    queue.push({ x: startX, y: startY });
-    visited[startIdx] = 1;
-
-    // 4-way connectivity (up, down, left, right)
-    const directions = [
-        { dx: 0, dy: -1 }, // up
-        { dx: 0, dy: 1 },  // down
-        { dx: -1, dy: 0 }, // left
-        { dx: 1, dy: 0 }   // right
-    ];
-
-    while (queue.length > 0) {
-        const { x, y } = queue.shift();
-        const idx = y * width + x;
-        segment.push(idx);
-
-        // Check neighbors
-        for (const dir of directions) {
-            const nx = x + dir.dx;
-            const ny = y + dir.dy;
-
-            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                const nIdx = ny * width + nx;
-                if (!visited[nIdx] && labels[nIdx] === targetLabel) {
-                    visited[nIdx] = 1;
-                    queue.push({ x: nx, y: ny });
-                }
-            }
-        }
-    }
-
-    return segment;
-}
-
-function enforceConnectivity (labels, width, height) {
-    const cleanedLabels = new Int32Array(width * height);
-    const visited = new Uint8Array(width * height);
-    const minSegmentSize = (width * height) / (2 * new Set(labels).size); // Minimum 50% of average size
-
-    let currentLabel = 0;
-
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            const idx = y * width + x;
-
-            if (!visited[idx]) {
-                const segment = floodFill(labels, width, height, x, y, labels[idx]);
-
-                if (segment.length >= minSegmentSize) {
-                    // Keep this segment
-                    segment.forEach(pos => {
-                        cleanedLabels[pos] = currentLabel;
-                        visited[pos] = 1;
-                    });
-                    currentLabel++;
-                } else {
-                    // Mark small segments to be reassigned
-                    segment.forEach(pos => {
-                        visited[pos] = 1;
-                    });
-                }
-            }
-        }
-    }
-
-    // Reassign pixels from small segments to neighboring labels
-    return cleanedLabels;
-}
-
-function extractSuperpixelFeatures (rgbData, labels, clusterCount) {
-    // Extract average color and other features for each superpixel
-    const features = new Array(clusterCount);
-
-    for (let i = 0; i < clusterCount; i++) {
-        features[i] = {
-            avgRGB: [0, 0, 0],
-            pixelCount: 0
-        };
-    }
-
-    for (let i = 0; i < labels.length; i++) {
-        const label = labels[i];
-        if (label >= 0) {
-            features[label].avgRGB[0] += rgbData[i * 4];
-            features[label].avgRGB[1] += rgbData[i * 4 + 1];
-            features[label].avgRGB[2] += rgbData[i * 4 + 2];
-            features[label].pixelCount++;
-        }
-    }
-
-    // Normalize averages and filter out empty clusters
-    const filteredFeatures = [];
-    features.forEach(feat => {
-        if (feat.pixelCount > 0) {
-            feat.avgRGB[0] /= feat.pixelCount;
-            feat.avgRGB[1] /= feat.pixelCount;
-            feat.avgRGB[2] /= feat.pixelCount;
-            filteredFeatures.push(feat);
-        }
+      }
     });
 
-    return filteredFeatures;
+    // Check convergence
+    if (previousLabels) {
+      let changed = false;
+      for (let i = 0; i < labels.length; i++) {
+        if (labels[i] !== previousLabels[i]) {
+          changed = true;
+          break;
+        }
+      }
+      if (!changed) {
+        console.log(`SLIC converged after ${iter + 1} iterations`);
+        break;
+      }
+    }
+    previousLabels = labels.slice();
+
+    // Update cluster centers
+    const newCenters = updateClusterCenters(rgbData, width, height, labels, clusterCenters.length);
+    for (let i = 0; i < newCenters.length; i++) {
+      if (newCenters[i]) {
+        clusterCenters[i] = newCenters[i];
+      }
+    }
+  }
+
+  return labels;
+}
+
+/**
+ * Update cluster centers based on assigned pixels
+ */
+function updateClusterCenters(rgbData, width, height, labels, clusterCount) {
+  const centers = new Array(clusterCount).fill(null);
+  const counts = new Array(clusterCount).fill(0);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      const label = labels[idx];
+      if (label >= 0 && label < clusterCount) {
+        if (!centers[label]) {
+          centers[label] = { x: 0, y: 0, r: 0, g: 0, b: 0 };
+        }
+        centers[label].x += x;
+        centers[label].y += y;
+        centers[label].r += rgbData[idx * 4];
+        centers[label].g += rgbData[idx * 4 + 1];
+        centers[label].b += rgbData[idx * 4 + 2];
+        counts[label]++;
+      }
+    }
+  }
+
+  return centers.map((center, i) => {
+    if (counts[i] > 0) {
+      return {
+        x: center.x / counts[i],
+        y: center.y / counts[i],
+        r: center.r / counts[i],
+        g: center.g / counts[i],
+        b: center.b / counts[i]
+      };
+    }
+    return null;
+  });
+}
+
+/**
+ * Enforce connectivity to avoid small orphaned segments
+ */
+function enforceConnectivity(labels, width, height) {
+  const cleanedLabels = new Int32Array(width * height).fill(-1);
+  const visited = new Uint8Array(width * height);
+  const labelMap = new Map();
+  let currentLabel = 0;
+
+  // Calculate minimum segment size (0.5% of average)
+  const avgSegmentSize = (width * height) / (new Set(labels).size);
+  const minSegmentSize = Math.max(10, Math.floor(avgSegmentSize * 0.005));
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      if (visited[idx]) continue;
+
+      // Flood fill to find connected component
+      const component = [];
+      const queue = [{ x, y }];
+      visited[idx] = 1;
+
+      while (queue.length > 0) {
+        const { x: cx, y: cy } = queue.shift();
+        component.push(cy * width + cx);
+
+        // 4-way connectivity
+        const neighbors = [
+          { x: cx - 1, y: cy },
+          { x: cx + 1, y: cy },
+          { x: cx, y: cy - 1 },
+          { x: cx, y: cy + 1 }
+        ];
+
+        for (const n of neighbors) {
+          if (n.x >= 0 && n.x < width && n.y >= 0 && n.y < height) {
+            const nIdx = n.y * width + n.x;
+            if (!visited[nIdx] && labels[nIdx] === labels[idx]) {
+              visited[nIdx] = 1;
+              queue.push(n);
+            }
+          }
+        }
+      }
+
+      // Assign label based on component size
+      if (component.length >= minSegmentSize) {
+        const label = labels[component[0]];
+        if (!labelMap.has(label)) {
+          labelMap.set(label, currentLabel++);
+        }
+        const newLabel = labelMap.get(label);
+        for (const pos of component) {
+          cleanedLabels[pos] = newLabel;
+        }
+      }
+    }
+  }
+
+  return cleanedLabels;
+}
+
+/**
+ * Extract enhanced superpixel features including edge strength and contrast
+ */
+function extractSuperpixelFeaturesEnhanced(rgbData, labels, width, height, clusterCount, scaleRatio = 1) {
+  // Aggregate features per superpixel
+  const tempFeatures = new Array(clusterCount);
+  for (let i = 0; i < clusterCount; i++) {
+    tempFeatures[i] = {
+      pixelCount: 0,
+      sumR: 0, sumG: 0, sumB: 0,
+      sumX: 0, sumY: 0,
+      edgeCount: 0,
+      neighborColors: [] // For contrast calculation
+    };
+  }
+
+  // First pass: aggregate color and position
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      const label = labels[idx];
+      
+      if (label >= 0 && label < clusterCount) {
+        const feature = tempFeatures[label];
+        feature.pixelCount++;
+        feature.sumR += rgbData[idx * 4];
+        feature.sumG += rgbData[idx * 4 + 1];
+        feature.sumB += rgbData[idx * 4 + 2];
+        feature.sumX += x;
+        feature.sumY += y;
+
+        // Check if this pixel is at an edge (different from neighbors)
+        const neighbors = [
+          { x: x - 1, y },
+          { x: x + 1, y },
+          { x, y: y - 1 },
+          { x, y: y + 1 }
+        ];
+
+        for (const n of neighbors) {
+          if (n.x >= 0 && n.x < width && n.y >= 0 && n.y < height) {
+            const nIdx = n.y * width + n.x;
+            if (labels[nIdx] !== label) {
+              feature.edgeCount++;
+              // Collect neighbor colors for contrast
+              if (feature.neighborColors.length < 10) {
+                feature.neighborColors.push({
+                  r: rgbData[nIdx * 4],
+                  g: rgbData[nIdx * 4 + 1],
+                  b: rgbData[nIdx * 4 + 2]
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Calculate edge strength and contrast
+  const features = [];
+  for (let i = 0; i < clusterCount; i++) {
+    const f = tempFeatures[i];
+    if (f.pixelCount === 0) continue;
+
+    // Average RGB
+    const avgRGB = [
+      Math.round(f.sumR / f.pixelCount),
+      Math.round(f.sumG / f.pixelCount),
+      Math.round(f.sumB / f.pixelCount)
+    ];
+
+    // Average position (scale back to original coordinates)
+    const avgX = (f.sumX / f.pixelCount) * scaleRatio;
+    const avgY = (f.sumY / f.pixelCount) * scaleRatio;
+
+    // Edge strength: ratio of edge pixels to total pixels
+    const edgeStrength = f.edgeCount / (f.pixelCount * 4); // Normalized by max possible edges
+
+    // Local contrast: difference between superpixel color and neighbor colors
+    let contrast = 0;
+    if (f.neighborColors.length > 0) {
+      let totalDiff = 0;
+      for (const nc of f.neighborColors) {
+        totalDiff += colorDistanceRGB(avgRGB[0], avgRGB[1], avgRGB[2], nc.r, nc.g, nc.b);
+      }
+      contrast = totalDiff / f.neighborColors.length / 255; // Normalize to 0-1
+    }
+
+    // Is this a boundary superpixel? (high edge ratio)
+    const isBoundary = edgeStrength > 0.1;
+
+    features.push({
+      avgRGB,
+      pixelCount: f.pixelCount,
+      x: avgX,
+      y: avgY,
+      edgeStrength,
+      contrast,
+      isBoundary
+    });
+  }
+
+  return features;
+}
+
+/**
+ * Calculate RGB color distance
+ */
+function colorDistanceRGB(r1, g1, b1, r2, g2, b2) {
+  return Math.sqrt(
+    Math.pow(r1 - r2, 2) +
+    Math.pow(g1 - g2, 2) +
+    Math.pow(b1 - b2, 2)
+  );
 }

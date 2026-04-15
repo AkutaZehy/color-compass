@@ -81,22 +81,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     .catch(e => console.log(t('version.fetchFailed'), e));
 
   // --- Palette Parameters with Default Values ---
+  // REVISED: Simplified parameter system to avoid conflicts
   const paletteParams = {
-    // 主参数
-    paletteSize: 20, // 总色板颜色数量 (与界面默认值一致)
-    // 主色参数
-    dominantColors: 8, // 主色数量 (界面范围2-20)
-    // 藏色参数
-    maxHiddenColors: 2, // 藏色最大数量 (与界面默认值一致)
-    minHiddenPercentage: 0.01, // 藏色最小占比阈值
-    // SLIC参数
-    superpixelCount: 200, // 超像素数量
-    superpixelCompactness: 10, // 超像素紧密度
-    // 背景色参数
-    maxBackgrounds: 3, // 最大背景色数量 (与界面默认值一致)
-    backgroundVarianceScale: 1, // 背景色方差扩展系数
-    useSuperpixels: true, // 是否使用SLIC超像素预处理
-    useDeltaE: false // 是否使用ΔE色差距离 (新增参数)
+    // Target palette size (4-24)
+    targetPaletteSize: 12,
+    
+    // Number of dominant colors from MMCQ (used as initial centroids)
+    dominantColors: 8,
+    
+    // Hidden color detection parameters
+    maxHiddenColors: 3,
+    hiddenColorThreshold: 0.005, // Dynamic threshold for hidden color detection
+    edgeSensitivity: 0.5, // How sensitive to edge colors (0-1)
+    contrastThreshold: 0.3, // How sensitive to contrast colors (0-1)
+    
+    // SLIC parameters
+    superpixelCount: 200,
+    superpixelCompactness: 10,
+    
+    // Background color parameters  
+    maxBackgrounds: 3,
+    backgroundVarianceScale: 1.0,
+    
+    // Algorithm options
+    useSuperpixels: true,
+    useDeltaE: false
   };
 
   // --- Get HTML Elements ---
@@ -111,11 +120,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toggleAdvancedBtn = document.getElementById('toggleAdvancedBtn'); // Toggle advanced params
   const resetParamsBtn = document.getElementById('resetParamsBtn'); // Reset parameters button
 
-  // Parameter controls
-  const paletteSizeInput = document.getElementById('paletteSize');
+  // Parameter controls (REVISED: removed paletteSizeInput, changed minHiddenPercentage to hiddenColorThreshold)
+  const targetPaletteSizeInput = document.getElementById('targetPaletteSize');
   const dominantColorsInput = document.getElementById('dominantColors');
   const maxHiddenColorsInput = document.getElementById('maxHiddenColors');
-  const minHiddenPercentageInput = document.getElementById('minHiddenPercentage');
+  const hiddenColorThresholdInput = document.getElementById('hiddenColorThreshold');
+  const edgeSensitivityInput = document.getElementById('edgeSensitivity');
+  const contrastThresholdInput = document.getElementById('contrastThreshold');
   const superpixelCountInput = document.getElementById('superpixelCount');
   const superpixelCompactnessInput = document.getElementById('superpixelCompactness');
   const maxBackgroundsInput = document.getElementById('maxBackgrounds');
@@ -123,10 +134,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const useDeltaEInput = document.getElementById('useDeltaE');
 
   // Parameter value displays
-  const paletteSizeValue = document.getElementById('paletteSizeValue');
+  const targetPaletteSizeValue = document.getElementById('targetPaletteSizeValue');
   const dominantColorsValue = document.getElementById('dominantColorsValue');
   const maxHiddenColorsValue = document.getElementById('maxHiddenColorsValue');
-  const minHiddenPercentageValue = document.getElementById('minHiddenPercentageValue');
+  const hiddenColorThresholdValue = document.getElementById('hiddenColorThresholdValue');
+  const edgeSensitivityValue = document.getElementById('edgeSensitivityValue');
+  const contrastThresholdValue = document.getElementById('contrastThresholdValue');
   const superpixelCountValue = document.getElementById('superpixelCountValue');
   const superpixelCompactnessValue = document.getElementById('superpixelCompactnessValue');
   const maxBackgroundsValue = document.getElementById('maxBackgroundsValue');
@@ -135,11 +148,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize parameter controls
   function initParamControls () {
-    // Set initial values
-    paletteSizeInput.value = paletteParams.paletteSize;
+    // Set initial values (REVISED)
+    targetPaletteSizeInput.value = paletteParams.targetPaletteSize;
     dominantColorsInput.value = paletteParams.dominantColors;
     maxHiddenColorsInput.value = paletteParams.maxHiddenColors;
-    minHiddenPercentageInput.value = paletteParams.minHiddenPercentage;
+    hiddenColorThresholdInput.value = paletteParams.hiddenColorThreshold;
+    edgeSensitivityInput.value = paletteParams.edgeSensitivity;
+    contrastThresholdInput.value = paletteParams.contrastThreshold;
     superpixelCountInput.value = paletteParams.superpixelCount;
     superpixelCompactnessInput.value = paletteParams.superpixelCompactness;
     maxBackgroundsInput.value = paletteParams.maxBackgrounds;
@@ -147,10 +162,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     useDeltaEInput.checked = paletteParams.useDeltaE;
 
     // Update displayed values
-    paletteSizeValue.textContent = paletteParams.paletteSize;
+    targetPaletteSizeValue.textContent = paletteParams.targetPaletteSize;
     dominantColorsValue.textContent = paletteParams.dominantColors;
     maxHiddenColorsValue.textContent = paletteParams.maxHiddenColors;
-    minHiddenPercentageValue.textContent = paletteParams.minHiddenPercentage.toFixed(3);
+    hiddenColorThresholdValue.textContent = paletteParams.hiddenColorThreshold.toFixed(4);
+    edgeSensitivityValue.textContent = paletteParams.edgeSensitivity.toFixed(2);
+    contrastThresholdValue.textContent = paletteParams.contrastThreshold.toFixed(2);
     superpixelCountValue.textContent = paletteParams.superpixelCount;
     superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness.toFixed(1);
     maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
@@ -158,10 +175,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     useDeltaEValue.textContent = paletteParams.useDeltaE ? t('palette.labels.deltaEOn') : t('palette.labels.deltaEOff');
 
     // Add event listeners
-    paletteSizeInput.addEventListener('input', updateParamsFromControls);
+    targetPaletteSizeInput.addEventListener('input', updateParamsFromControls);
     dominantColorsInput.addEventListener('input', updateParamsFromControls);
     maxHiddenColorsInput.addEventListener('input', updateParamsFromControls);
-    minHiddenPercentageInput.addEventListener('input', updateParamsFromControls);
+    hiddenColorThresholdInput.addEventListener('input', updateParamsFromControls);
+    edgeSensitivityInput.addEventListener('input', updateParamsFromControls);
+    contrastThresholdInput.addEventListener('input', updateParamsFromControls);
     superpixelCountInput.addEventListener('input', updateParamsFromControls);
     superpixelCompactnessInput.addEventListener('input', updateParamsFromControls);
     maxBackgroundsInput.addEventListener('input', updateParamsFromControls);
@@ -191,12 +210,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Update params from control values
+  // Update params from control values (REVISED)
   function updateParamsFromControls () {
-    paletteParams.paletteSize = parseInt(paletteSizeInput.value);
+    paletteParams.targetPaletteSize = parseInt(targetPaletteSizeInput.value);
     paletteParams.dominantColors = parseInt(dominantColorsInput.value);
     paletteParams.maxHiddenColors = parseInt(maxHiddenColorsInput.value);
-    paletteParams.minHiddenPercentage = parseFloat(minHiddenPercentageInput.value);
+    paletteParams.hiddenColorThreshold = parseFloat(hiddenColorThresholdInput.value);
+    paletteParams.edgeSensitivity = parseFloat(edgeSensitivityInput.value);
+    paletteParams.contrastThreshold = parseFloat(contrastThresholdInput.value);
     paletteParams.superpixelCount = parseInt(superpixelCountInput.value);
     paletteParams.superpixelCompactness = parseFloat(superpixelCompactnessInput.value);
     paletteParams.maxBackgrounds = parseInt(maxBackgroundsInput.value);
@@ -204,10 +225,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     paletteParams.useDeltaE = useDeltaEInput.checked;
 
     // Update displayed values
-    paletteSizeValue.textContent = paletteParams.paletteSize;
+    targetPaletteSizeValue.textContent = paletteParams.targetPaletteSize;
     dominantColorsValue.textContent = paletteParams.dominantColors;
     maxHiddenColorsValue.textContent = paletteParams.maxHiddenColors;
-    minHiddenPercentageValue.textContent = paletteParams.minHiddenPercentage.toFixed(3);
+    hiddenColorThresholdValue.textContent = paletteParams.hiddenColorThreshold.toFixed(4);
+    edgeSensitivityValue.textContent = paletteParams.edgeSensitivity.toFixed(2);
+    contrastThresholdValue.textContent = paletteParams.contrastThreshold.toFixed(2);
     superpixelCountValue.textContent = paletteParams.superpixelCount;
     superpixelCompactnessValue.textContent = paletteParams.superpixelCompactness.toFixed(1);
     maxBackgroundsValue.textContent = paletteParams.maxBackgrounds;
@@ -215,17 +238,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     useDeltaEValue.textContent = paletteParams.useDeltaE ? t('palette.labels.deltaEOn') : t('palette.labels.deltaEOff');
   }
 
-  // Reset parameters to defaults
+  // Reset parameters to defaults (REVISED)
   function resetParamsToDefaults () {
     const defaultParams = {
-      paletteSize: 20,
+      targetPaletteSize: 12,
       dominantColors: 8,
-      maxHiddenColors: 2,
-      minHiddenPercentage: 0.01,
+      maxHiddenColors: 3,
+      hiddenColorThreshold: 0.005,
+      edgeSensitivity: 0.5,
+      contrastThreshold: 0.3,
       superpixelCount: 200,
       superpixelCompactness: 10,
       maxBackgrounds: 3,
-      backgroundVarianceScale: 1,
+      backgroundVarianceScale: 1.0,
       useSuperpixels: true,
       useDeltaE: false
     };
@@ -234,10 +259,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     Object.assign(paletteParams, defaultParams);
 
     // Update UI controls
-    paletteSizeInput.value = paletteParams.paletteSize;
+    targetPaletteSizeInput.value = paletteParams.targetPaletteSize;
     dominantColorsInput.value = paletteParams.dominantColors;
     maxHiddenColorsInput.value = paletteParams.maxHiddenColors;
-    minHiddenPercentageInput.value = paletteParams.minHiddenPercentage;
+    hiddenColorThresholdInput.value = paletteParams.hiddenColorThreshold;
+    edgeSensitivityInput.value = paletteParams.edgeSensitivity;
+    contrastThresholdInput.value = paletteParams.contrastThreshold;
     superpixelCountInput.value = paletteParams.superpixelCount;
     superpixelCompactnessInput.value = paletteParams.superpixelCompactness;
     maxBackgroundsInput.value = paletteParams.maxBackgrounds;
@@ -254,7 +281,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize controls
   initParamControls();
 
-  // Add re-render button event listener
+  // Add re-render button event listener (REVISED API)
   reRenderPaletteBtn.addEventListener('click', () => {
     if (currentPixelData && currentImageSize.width > 0 && currentImageSize.height > 0) {
       console.log("Re-rendering palette with current parameters...");
@@ -278,21 +305,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         paletteParams.dominantColors
       );
 
-      // 3. 使用二阶段Kmeans分析调色板
+      // 3. 使用改进的分析算法 (REVISED API)
       const analyzedPalette = analyzePalette(
         currentPixelData,
         dominantColors,
-        paletteParams.paletteSize,
-        paletteParams.maxHiddenColors,
-        paletteParams.minHiddenPercentage,
-        currentImageSize.width,
-        currentImageSize.height,
-        paletteParams.maxBackgrounds,
-        paletteParams.useSuperpixels,
-        paletteParams.backgroundVarianceScale,
-        superpixelData
+        {
+          paletteSize: paletteParams.targetPaletteSize,
+          maxHiddenColors: paletteParams.maxHiddenColors,
+          minHiddenPercentage: paletteParams.hiddenColorThreshold,
+          maxBackgrounds: paletteParams.maxBackgrounds,
+          useSuperpixels: paletteParams.useSuperpixels,
+          backgroundVarianceScale: paletteParams.backgroundVarianceScale,
+          superpixelData: superpixelData,
+          useDeltaE: paletteParams.useDeltaE,
+          width: currentImageSize.width,
+          height: currentImageSize.height,
+          edgeSensitivity: paletteParams.edgeSensitivity,
+          contrastThreshold: paletteParams.contrastThreshold,
+          enableEdgeDetection: true
+        }
       );
-      console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
+      console.log(`Palette analyzed (${analyzedPalette.length} colors).`);
 
       // Sort and render palette
       analyzedPalette.sort((a, b) => a.lab[0] - b.lab[0]);
@@ -439,20 +472,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             paletteParams.dominantColors
           );
 
-          // 3. 使用二阶段Kmeans分析调色板
+          // 3. 使用改进的分析算法 (REVISED API)
           const analyzedPalette = analyzePalette(
             currentPixelData,
             dominantColors,
-            paletteParams.paletteSize,
-            paletteParams.maxHiddenColors,
-            paletteParams.minHiddenPercentage,
-            currentImageSize.width,
-            currentImageSize.height,
-            paletteParams.maxBackgrounds,
-            paletteParams.useSuperpixels,
-            paletteParams.backgroundVarianceScale,
-            superpixelData,
-            paletteParams.useDeltaE
+            {
+              paletteSize: paletteParams.targetPaletteSize,
+              maxHiddenColors: paletteParams.maxHiddenColors,
+              minHiddenPercentage: paletteParams.hiddenColorThreshold,
+              maxBackgrounds: paletteParams.maxBackgrounds,
+              useSuperpixels: paletteParams.useSuperpixels,
+              backgroundVarianceScale: paletteParams.backgroundVarianceScale,
+              superpixelData: superpixelData,
+              useDeltaE: paletteParams.useDeltaE,
+              width: currentImageSize.width,
+              height: currentImageSize.height,
+              edgeSensitivity: paletteParams.edgeSensitivity,
+              contrastThreshold: paletteParams.contrastThreshold,
+              enableEdgeDetection: true
+            }
           );
           console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
 

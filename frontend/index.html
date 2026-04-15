@@ -102,18 +102,18 @@
                   <button id="toggleAdvancedBtn"><span data-i18n="palette.showAdvanced" data-i18n-attr="textContent"></span></button>
                   <div class="advanced-content" style="display: none">
                     <div class="param-group">
-                      <label for="paletteSize"
-                        ><span data-i18n="palette.labels.paletteSize" data-i18n-attr="textContent"></span>
-                        <span class="tooltip">?<span class="tooltiptext" data-i18n-key="palette.tooltips.paletteSize"></span></span>
+                      <label for="targetPaletteSize"
+                        ><span data-i18n="palette.labels.targetPaletteSize" data-i18n-attr="textContent"></span>
+                        <span class="tooltip">?<span class="tooltiptext" data-i18n-key="palette.tooltips.targetPaletteSize"></span></span>
                       </label>
                       <input
                         type="range"
-                        id="paletteSize"
-                        min="2"
-                        max="50"
-                        value="20"
+                        id="targetPaletteSize"
+                        min="4"
+                        max="24"
+                        value="12"
                       />
-                      <span class="param-value" id="paletteSizeValue">20</span>
+                      <span class="param-value" id="targetPaletteSizeValue">12</span>
                     </div>
 
                     <div class="param-group">
@@ -132,19 +132,49 @@
                       <span class="param-value" id="maxHiddenColorsValue">2</span>
                     </div>
                     <div class="param-group">
-                      <label for="minHiddenPercentage"
-                        ><span data-i18n="palette.labels.minHiddenPercentage" data-i18n-attr="textContent"></span>
-                        <span class="tooltip">?<span class="tooltiptext" data-i18n-key="palette.tooltips.minHiddenPercentage"></span></span>
+                      <label for="hiddenColorThreshold"
+                        ><span data-i18n="palette.labels.hiddenColorThreshold" data-i18n-attr="textContent"></span>
+                        <span class="tooltip">?<span class="tooltiptext" data-i18n-key="palette.tooltips.hiddenColorThreshold"></span></span>
                       </label>
                       <input
                         type="range"
-                        id="minHiddenPercentage"
+                        id="hiddenColorThreshold"
                         min="0"
-                        max="0.5"
-                        value="0.01"
-                        step="0.005"
+                        max="0.05"
+                        value="0.005"
+                        step="0.001"
                       />
-                      <span class="param-value" id="minHiddenPercentageValue">0.01</span>
+                      <span class="param-value" id="hiddenColorThresholdValue">0.005</span>
+                    </div>
+                    <div class="param-group">
+                      <label for="edgeSensitivity"
+                        ><span data-i18n="palette.labels.edgeSensitivity" data-i18n-attr="textContent"></span>
+                        <span class="tooltip">?<span class="tooltiptext" data-i18n-key="palette.tooltips.edgeSensitivity"></span></span>
+                      </label>
+                      <input
+                        type="range"
+                        id="edgeSensitivity"
+                        min="0"
+                        max="1"
+                        value="0.5"
+                        step="0.05"
+                      />
+                      <span class="param-value" id="edgeSensitivityValue">0.50</span>
+                    </div>
+                    <div class="param-group">
+                      <label for="contrastThreshold"
+                        ><span data-i18n="palette.labels.contrastThreshold" data-i18n-attr="textContent"></span>
+                        <span class="tooltip">?<span class="tooltiptext" data-i18n-key="palette.tooltips.contrastThreshold"></span></span>
+                      </label>
+                      <input
+                        type="range"
+                        id="contrastThreshold"
+                        min="0"
+                        max="1"
+                        value="0.3"
+                        step="0.05"
+                      />
+                      <span class="param-value" id="contrastThresholdValue">0.30</span>
                     </div>
                     <div class="param-group">
                       <label for="superpixelCount"
