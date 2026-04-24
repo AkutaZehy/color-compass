@@ -14,6 +14,7 @@ import { setupSphereScene, disposeScene, exportSphereAsImage } from './sphereRen
 import { saveTextFile, saveDataUrlAsFile } from './fileSaver.js'; // Import file saver utilities
 import { rgbToHex } from './colorUtils.js'; // Make sure this is imported
 import { t, initI18n } from './i18n.js'; // Import i18n module
+import { drawSLMapPanel } from './slMapRenderer.js';
 
 
 // --- State Variables ---
@@ -357,6 +358,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sphereContainer = document.getElementById('sphereContainer');
   const spherePlaceholder = document.getElementById('spherePlaceholder');
 
+  // SL Map elements
+  const slMapSection = document.getElementById('slMapSection');
+  const clusteredCanvas = document.getElementById('clusteredCanvas');
+  const sMapCanvas = document.getElementById('sMapCanvas');
+  const lMapCanvas = document.getElementById('lMapCanvas');
+
   // Export Buttons
   const savePaletteImageBtn = document.getElementById('savePaletteImageBtn');
   const savePaletteDataBtn = document.getElementById('savePaletteDataBtn');
@@ -374,7 +381,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     !histLCanvas || !histACanvas || !histBCanvas || !labScatterCanvas ||
     !colorSphereSection || !sphereContainer || !spherePlaceholder ||
     !savePaletteImageBtn || !savePaletteDataBtn || !saveSphereImageBtn ||
-    !paletteExportButtonsDiv || !sphereExportButtonsDiv) {
+    !paletteExportButtonsDiv || !sphereExportButtonsDiv ||
+    !slMapSection || !clusteredCanvas || !sMapCanvas || !lMapCanvas) {
     console.error("Error: Required HTML elements not found. Check index.html IDs.");
     // Potentially display an error message to the user here
     return; // Stop script execution if critical elements are missing
@@ -575,6 +583,11 @@ document.addEventListener('DOMContentLoaded', async () => {
               advancedVizSection.style.display = 'block';
             }
 
+            // --- Step 4.5: Draw SL Map Visualizations ---
+            console.log("Drawing SL Map visualizations...");
+            slMapSection.classList.add('visible');
+            drawSLMapPanel(clusteredCanvas, sMapCanvas, lMapCanvas, pixelData, actualWidth, actualHeight);
+
             console.log("Color stats calculated and 2D visualizations rendered.");
 
             // --- Step 5: Setup and Render 3D Sphere ---
@@ -677,6 +690,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (spherePlaceholder) spherePlaceholder.style.display = 'block';
     const sphereExportButtonsDiv = document.querySelector('.color-sphere-section .export-buttons');
     if (sphereExportButtonsDiv) sphereExportButtonsDiv.style.display = 'none'; // Ensure sphere buttons are hidden
+
+    // Hide SL Map section
+    slMapSection.classList.remove('visible');
   }
 
   // Reset to initial state (show upload area, hide all results)

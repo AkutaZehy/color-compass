@@ -42,6 +42,8 @@
     <script type="module" src="js/sphereRenderer3D.js"></script>
     <script type="module" src="js/fileSaver.js"></script>
     <script type="module" src="js/i18n.js"></script>
+    <script type="module" src="js/slic.js"></script>
+    <script type="module" src="js/slMapRenderer.js"></script>
     <script type="module" src="js/main.js"></script>
   </head>
   <body>
@@ -312,10 +314,10 @@
                 </div>
               </div>
 
-            <!-- 高级可视化图表 - 2x2网格布局 -->
+            <!-- 高级可视化图表 - 3列并排布局 -->
               <div class="advanced-viz-section" id="advancedVizSection">
                 <h2><span data-i18n="advanced.title" data-i18n-attr="textContent"></span><span class="tooltip">?<span class="tooltiptext" data-i18n-key="advanced.tooltip"></span></span></h2>
-                <div class="advanced-charts-grid four-charts">
+                <div class="advanced-charts-grid three-charts">
                   <div class="chart-container">
                     <canvas id="huePolar" width="400" height="400" role="img" aria-label="Hue polar distribution chart showing hue distribution density on circle"></canvas>
                     <p><span data-i18n="advanced.charts.huePolar.title" data-i18n-attr="textContent"></span><span class="tooltip">?<span class="tooltiptext" data-i18n-key="advanced.charts.huePolar.tooltip"></span></span></p>
@@ -323,10 +325,6 @@
                   <div class="chart-container">
                     <canvas id="labScatter" width="400" height="400" role="img" aria-label="Lab a*b* scatter plot, horizontal axis a* Red-Green, vertical axis b* Yellow-Blue"></canvas>
                     <p><span data-i18n="advanced.charts.labScatter.title" data-i18n-attr="textContent"></span><span class="tooltip">?<span class="tooltiptext" data-i18n-key="advanced.charts.labScatter.tooltip"></span></span></p>
-                  </div>
-                  <div class="chart-container">
-                    <canvas id="distanceHeatmap" width="400" height="400" role="img" aria-label="Color distance heatmap showing color difference for each region to nearest palette color"></canvas>
-                    <p><span data-i18n="advanced.charts.distanceHeatmap.title" data-i18n-attr="textContent"></span><span class="tooltip">?<span class="tooltiptext" data-i18n-key="advanced.charts.distanceHeatmap.tooltip"></span></span></p>
                   </div>
                   <div class="chart-container">
                     <canvas id="labDensity" width="400" height="400" role="img" aria-label="Lab color density distribution chart showing color density on a*b* plane"></canvas>
@@ -337,6 +335,29 @@
 
               <!-- 移除原来的lab-scatter-section，它已经移到高级图表区域 -->
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map Analysis Panel -->
+      <div class="sl-map-section" id="slMapSection">
+        <h2><span data-i18n="slmap.title" data-i18n-attr="textContent"></span><span class="tooltip">?<span class="tooltiptext" data-i18n-key="slmap.tooltip"></span></span></h2>
+        <div class="sl-map-container four-charts">
+          <div class="sl-map-item">
+            <canvas id="clusteredCanvas"></canvas>
+            <p><span data-i18n="slmap.clustered" data-i18n-attr="textContent"></span></p>
+          </div>
+          <div class="sl-map-item">
+            <canvas id="sMapCanvas"></canvas>
+            <p><span data-i18n="slmap.sMap" data-i18n-attr="textContent"></span></p>
+          </div>
+          <div class="sl-map-item">
+            <canvas id="lMapCanvas"></canvas>
+            <p><span data-i18n="slmap.lMap" data-i18n-attr="textContent"></span></p>
+          </div>
+          <div class="sl-map-item">
+            <canvas id="distanceHeatmap" width="1885" height="1060" role="img" aria-label="Color distance heatmap showing color difference for each region to nearest palette color"></canvas>
+            <p><span data-i18n="advanced.charts.distanceHeatmap.title" data-i18n-attr="textContent">色彩距离热力图</span><span class="tooltip">?<span class="tooltiptext" data-i18n-key="advanced.charts.distanceHeatmap.tooltip">展示图像各区域与提取的色板之间的色彩差异程度。绿色表示该区域颜色与色板匹配良好，红色表示差异较大，有助于评估色板的代表性。</span></span></p>
           </div>
         </div>
       </div>

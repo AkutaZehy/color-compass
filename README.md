@@ -30,6 +30,11 @@
     - Color distance heatmap
     - Lab a*b* density distribution
     - Lab a*b* scatter plot
+    - **Map Analysis**:
+        - Color Clustering: Mosaic downsampling + median cut (16 colors)
+        - S Map: Saturation grayscale visualization
+        - L Map: Standard 8-bit posterization (10 luminance levels)
+        - Color Distance Heatmap: Shows color difference per region to nearest palette color
 
 - **3D Color Space**:
     - Interactive 3D sphere visualization in Lch color space
@@ -106,6 +111,7 @@ frontend/
 │   ├── colorStats.js      # Statistical color analysis
 │   ├── visualization2D.js # 2D histograms and scatter plots
 │   ├── visualizationAdvanced.js # Advanced visualizations
+│   ├── slMapRenderer.js     # S-L Map visualizations
 │   ├── sphereRenderer3D.js # 3D Lch color sphere
 │   ├── fileSaver.js       # Export utilities
 │   └── i18n.js            # Internationalization

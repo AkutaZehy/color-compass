@@ -116,6 +116,13 @@
       "saturation": "Saturation"
     }
   },
+  "slmap": {
+    "title": "Map Analysis",
+    "tooltip": "Four visualization maps for analyzing image color distribution: (1) Color Clustering: Uses mosaic downsampling + median cut to reduce to 16 colors. (2) S Map: Saturation grayscale - white=high saturation, black=low saturation. (3) L Map: Standard 8-bit posterization - divides 0-255 into 10 levels based on L* luminance. (4) Color Distance Heatmap: Shows color difference per region to nearest palette color, green=match, red=difference.",
+    "clustered": "Color Clustering",
+    "sMap": "Saturation Map (S)",
+    "lMap": "Luminance Map (L*)"
+  },
   "footer": {
     "github": "GitHub Repository",
     "privacy": "We respect your privacy. This project is purely frontend, so all your data will be processed locally and not uploaded to any server (we don't have one!)"

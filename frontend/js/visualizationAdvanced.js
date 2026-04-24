@@ -46,13 +46,22 @@ export function drawHuePolarChart(canvas, hValues, title = '色相分布') {
   const maxCount = Math.max(...bins);
   const minRadius = 30; // Inner radius (for visual appeal)
 
-  // Draw polar grid
+  // Draw polar grid with logarithmic scale labels
   ctx.strokeStyle = '#444';
   ctx.lineWidth = 1;
+  ctx.fillStyle = '#666';
+  ctx.font = '10px sans-serif';
+
   for (let r = minRadius; r <= maxRadius; r += (maxRadius - minRadius) / 4) {
     ctx.beginPath();
     ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
     ctx.stroke();
+
+    // Calculate corresponding count for this radius (log scale)
+    const radiusRatio = (r - minRadius) / (maxRadius - minRadius);
+    const logRatio = Math.pow(Math.max(maxCount, 1) + 1, radiusRatio) - 1;
+    const labelValue = Math.round(logRatio);
+    ctx.fillText(labelValue.toString(), centerX + 5, centerY - r + 12);
   }
 
   // Draw angular grid
@@ -67,11 +76,14 @@ export function drawHuePolarChart(canvas, hValues, title = '色相分布') {
     ctx.stroke();
   }
 
-  // Draw colored bars
+  // Draw colored bars with logarithmic scale
   const barWidth = (Math.PI * 2) / numBins;
 
+  const logMaxCount = Math.log(maxCount + 1);
+
   bins.forEach((count, i) => {
-    const normalizedCount = count / maxCount;
+    const logCount = count > 0 ? Math.log(count + 1) : 0;
+    const normalizedCount = logMaxCount > 0 ? logCount / logMaxCount : 0;
     const innerR = minRadius + (maxRadius - minRadius) * 0.15; // Leave some space
     const outerR = minRadius + (maxRadius - minRadius) * (0.15 + normalizedCount * 0.85);
     const startAngle = i * barWidth - Math.PI / 2;
@@ -269,48 +281,69 @@ export function drawHsvSquareChart(canvas, pixelData, title = 'HSV分布图') {
  */
 export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth, imageHeight, title = '色彩距离热力图') {
   const ctx = canvas.getContext('2d');
-  const width = canvas.width;
-  const height = canvas.height;
+  const canvasWidth = canvas.width;
+  const canvasHeight = canvas.height;
 
   // Clear canvas
   ctx.fillStyle = '#2a2a2a';
-  ctx.fillRect(0, 0, width, height);
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   if (!palette || palette.length === 0 || !pixelData) {
     ctx.fillStyle = '#888';
     ctx.textAlign = 'center';
     ctx.font = '14px sans-serif';
-    ctx.fillText(t('analysis.noData'), width / 2, height / 2);
+    ctx.fillText(t('analysis.noData'), canvasWidth / 2, canvasHeight / 2);
     return;
   }
 
-  const margin = 50;
-  const chartSize = Math.min(width, height) - margin * 2;
-  const gridSize = Math.min(100, Math.floor(chartSize / 5)); // Grid cells
+  const margin = 10;
+  const availableWidth = canvasWidth - margin * 2;
+  const availableHeight = canvasHeight - margin * 2;
+
+  // Calculate cell size to fill the canvas while maintaining image aspect ratio
+  const aspectRatio = imageWidth / imageHeight;
+  let chartWidth, chartHeight, offsetX, offsetY;
+
+  if (aspectRatio > availableWidth / availableHeight) {
+    // Image is wider than available area
+    chartWidth = availableWidth;
+    chartHeight = chartWidth / aspectRatio;
+    offsetX = margin;
+    offsetY = margin + (availableHeight - chartHeight) / 2;
+  } else {
+    // Image is taller than available area
+    chartHeight = availableHeight;
+    chartWidth = chartHeight * aspectRatio;
+    offsetX = margin + (availableWidth - chartWidth) / 2;
+    offsetY = margin;
+  }
+
+  // Use a fixed grid size (e.g., 50x50) that will be scaled
+  const gridSize = 50;
+  const cellWidth = chartWidth / gridSize;
+  const cellHeight = chartHeight / gridSize;
 
   // Downsample image for the heatmap
-  const cellWidth = imageWidth / gridSize;
-  const cellHeight = imageHeight / gridSize;
+  const sampleCellWidth = imageWidth / gridSize;
+  const sampleCellHeight = imageHeight / gridSize;
 
   // Calculate average distance from each cell to nearest palette color
   const distances = [];
 
   for (let gy = 0; gy < gridSize; gy++) {
     for (let gx = 0; gx < gridSize; gx++) {
-      // Sample pixels in this cell
-      const startX = Math.floor(gx * cellWidth);
-      const endX = Math.floor((gx + 1) * cellWidth);
-      const startY = Math.floor(gy * cellHeight);
-      const endY = Math.floor((gy + 1) * cellHeight);
+      const startX = Math.floor(gx * sampleCellWidth);
+      const endX = Math.floor((gx + 1) * sampleCellWidth);
+      const startY = Math.floor(gy * sampleCellHeight);
+      const endY = Math.floor((gy + 1) * sampleCellHeight);
 
       let totalDist = 0;
       let count = 0;
 
       for (let y = startY; y < endY; y++) {
         for (let x = startX; x < endX; x++) {
-          // Ensure we don't exceed pixel data bounds
           const idx = (y * imageWidth + x) * 4;
-          if (idx + 3 >= pixelData.length) continue; // Skip if out of bounds
+          if (idx + 3 >= pixelData.length) continue;
 
           const r = pixelData[idx];
           const g = pixelData[idx + 1];
@@ -318,16 +351,15 @@ export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth,
 
           const pixelLab = rgbToLab(r, g, b);
 
-          // Find closest palette color
           let minDist = Infinity;
-          palette.forEach(color => {
+          for (const color of palette) {
             const dist = Math.sqrt(
               Math.pow(pixelLab[0] - color.lab[0], 2) +
               Math.pow(pixelLab[1] - color.lab[1], 2) +
               Math.pow(pixelLab[2] - color.lab[2], 2)
             );
             minDist = Math.min(minDist, dist);
-          });
+          }
 
           totalDist += minDist;
           count++;
@@ -339,11 +371,7 @@ export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth,
     }
   }
 
-  // Find max distance for scaling
-  const maxDist = Math.max(...distances, 1); // Avoid division by zero
-
-  // Draw heatmap cells
-  const cellPixelSize = chartSize / gridSize;
+  const maxDist = Math.max(...distances, 1);
 
   for (let i = 0; i < distances.length; i++) {
     const gx = i % gridSize;
@@ -351,16 +379,13 @@ export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth,
     const dist = distances[i];
     const normalizedDist = dist / maxDist;
 
-    // Color gradient: Green (low distance) -> Yellow -> Red (high distance)
     let r, g_, b_;
     if (normalizedDist < 0.5) {
-      // Green to Yellow
       const t = normalizedDist * 2;
       r = Math.floor(255 * t);
       g_ = 255;
       b_ = 0;
     } else {
-      // Yellow to Red
       const t = (normalizedDist - 0.5) * 2;
       r = 255;
       g_ = Math.floor(255 * (1 - t));
@@ -369,49 +394,31 @@ export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth,
 
     ctx.fillStyle = `rgb(${r}, ${g_}, ${b_})`;
     ctx.fillRect(
-      margin + gx * cellPixelSize,
-      margin + gy * cellPixelSize,
-      cellPixelSize + 1, // +1 to avoid gaps
-      cellPixelSize + 1
+      offsetX + gx * cellWidth,
+      offsetY + gy * cellHeight,
+      cellWidth,
+      cellHeight
     );
   }
 
-  // Draw border
-  ctx.strokeStyle = '#444';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(margin, margin, chartSize, chartSize);
-
-  // Title
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 14px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(title, width / 2, 20);
-
   // Legend
-  const legendY = margin + chartSize + 25;
-  const legendWidth = 100;
-  const legendHeight = 12;
+  const legendY = offsetY + chartHeight + 8;
+  const legendWidth = chartWidth;
+  const legendHeight = 10;
 
-  // Gradient legend
-  const gradient = ctx.createLinearGradient(margin, 0, margin + legendWidth, 0);
+  const gradient = ctx.createLinearGradient(offsetX, 0, offsetX + legendWidth, 0);
   gradient.addColorStop(0, 'rgb(0, 255, 0)');
   gradient.addColorStop(0.5, 'rgb(255, 255, 0)');
   gradient.addColorStop(1, 'rgb(255, 0, 0)');
 
   ctx.fillStyle = gradient;
-  ctx.fillRect(margin, legendY, legendWidth, legendHeight);
+  ctx.fillRect(offsetX, legendY, legendWidth, legendHeight);
 
-  // Legend labels
-  ctx.fillStyle = '#888';
-  ctx.font = '10px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(t('advanced.charts.distanceHeatmap.legend.low'), margin, legendY + legendHeight + 12);
-  ctx.fillText(t('advanced.charts.distanceHeatmap.legend.high'), margin + legendWidth, legendY + legendHeight + 12);
-
-  // Description
-  ctx.font = '9px sans-serif';
   ctx.fillStyle = '#666';
-  ctx.fillText(`(显示每个区域到最近色板颜色的平均色差)`, margin + legendWidth / 2, legendY + legendHeight + 25);
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(t('advanced.charts.distanceHeatmap.legend.low'), offsetX, legendY + legendHeight + 10);
+  ctx.fillText(t('advanced.charts.distanceHeatmap.legend.high'), offsetX + legendWidth, legendY + legendHeight + 10);
 }
 
 /**
