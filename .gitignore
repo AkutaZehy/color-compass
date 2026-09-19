@@ -49,3 +49,4 @@ vssver.scc
 # e.g., sample_images/
 CLAUDE.md
 .claude/settings.local.json
+.test-assets/
