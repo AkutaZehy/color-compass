@@ -574,7 +574,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Draw Histograms
             const binCount = 60; // Number of bars in histogram
-            drawHistogram(histHCanvas, colorStats.rawValues.h, "Hue", 0, 1, binCount);
+            drawHistogram(histHCanvas, colorStats.rawValues.h, "Hue", 0, 1, binCount, true);
             drawHistogram(histSCanvas, colorStats.rawValues.s, "Saturation", 0, 1, binCount);
             drawHistogram(histVCanvas, colorStats.rawValues.v, "Value", 0, 1, binCount);
             drawHistogram(histLCanvas, colorStats.rawValues.l, "L*", 0, 100, binCount);

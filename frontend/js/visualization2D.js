@@ -9,8 +9,11 @@ import { rgbToLab } from './colorUtils.js'; // Import Lab conversion
  * @param {number} rangeMin - Minimum value of the data range.
  * @param {number} rangeMax - Maximum value of the data range.
  * @param {number} binCount - Number of bins for the histogram.
+ * @param {boolean} circular - Wrap-aware binning for cyclic channels (hue):
+ *   a 3-tap circular smoothing merges the artificial edge split where the
+ *   same color appears at both bin 0 and the last bin.
  */
-export function drawHistogram (canvas, data, channelName, rangeMin, rangeMax, binCount) { // Export the function
+export function drawHistogram (canvas, data, channelName, rangeMin, rangeMax, binCount, circular = false) { // Export the function
   const ctx = canvas.getContext('2d');
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
@@ -45,8 +48,18 @@ export function drawHistogram (canvas, data, channelName, rangeMin, rangeMax, bi
     bins[binIndex]++;
   });
 
+  // Cyclic channels: smooth across the wrap so bin 0 and the last bin blend
+  let displayBins = bins;
+  if (circular) {
+    displayBins = bins.map((count, i) => {
+      const prev = bins[(i - 1 + binCount) % binCount];
+      const next = bins[(i + 1) % binCount];
+      return (prev + 2 * count + next) / 4;
+    });
+  }
+
   // Find max bin count for scaling
-  const maxBinCount = Math.max(...bins);
+  const maxBinCount = Math.max(...displayBins);
   if (maxBinCount === 0) { // Handle case where all bins are zero
     ctx.fillStyle = '#888';
     ctx.textAlign = 'center';
@@ -62,7 +75,7 @@ export function drawHistogram (canvas, data, channelName, rangeMin, rangeMax, bi
 
   ctx.fillStyle = '#5a9'; // Bar color (e.g., a teal color)
 
-  bins.forEach((count, index) => {
+  displayBins.forEach((count, index) => {
     // Scale bar height based on maxBinCount
     const barHeight = (count / maxBinCount) * canvasHeight;
     const x = index * barWidth;
