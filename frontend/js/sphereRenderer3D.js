@@ -5,6 +5,7 @@ import * as THREE from '../lib/three/build/three.module.js';
 import { OrbitControls } from '../lib/three/examples/jsm/controls/OrbitControls.js';
 import { rgbToLab, labToRgbLinear } from './colorUtils.js'; // Lab conversions
 import { t } from './i18n.js'; // Import i18n module
+import { showToast } from './toast.js';
 
 
 let scene, camera, renderer, controls;
@@ -363,7 +364,7 @@ export function setupSphereScene (container, pixelData, imageWidth, imageHeight,
 export function exportSphereAsImage (renderer, scene, camera, filename = 'color_sphere.png') {
   if (!renderer || !renderer.domElement || !scene || !camera) {
     console.error("Cannot export: Three.js renderer, scene, or camera is not available.");
-    alert(t('errors.noSphere'));
+    showToast(t('errors.noSphere'));
     return null;
   }
 
@@ -371,7 +372,7 @@ export function exportSphereAsImage (renderer, scene, camera, filename = 'color_
 
   if (canvasElement.width === 0 || canvasElement.height === 0) {
     console.error("Cannot export: 3D renderer canvas has zero dimensions.");
-    alert(t('errors.invalidSphereCanvas'));
+    showToast(t('errors.invalidSphereCanvas'));
     return null;
   }
 
@@ -386,7 +387,7 @@ export function exportSphereAsImage (renderer, scene, camera, filename = 'color_
     return dataUrl; // Return Data URL so main.js can use fileSaver
   } catch (e) {
     console.error("Error getting data URL from 3D canvas:", e);
-    alert(t('errors.sphereExportFailed'));
+    showToast(t('errors.sphereExportFailed'));
     return null;
   }
 }

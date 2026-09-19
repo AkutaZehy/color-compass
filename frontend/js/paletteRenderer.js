@@ -1,6 +1,7 @@
 // frontend/js/paletteRenderer.js
 import { rgbToHex } from './colorUtils.js'; // Import the function
 import { t } from './i18n.js'; // Import i18n module
+import { showToast } from './toast.js';
 
 /**
  * Draws a paint-chip swatch (skeuomorphic theme): rounded paper card with a
@@ -183,7 +184,7 @@ export function drawPalette (palette, canvasElement, totalPixels) {
 export function exportPaletteAsImage (canvasElement, filename = 'color_palette.png') { // Export the function
   if (!canvasElement || canvasElement.width === 0 || canvasElement.height === 0) {
     console.error("Cannot export empty or non-existent palette canvas.");
-    alert(t('errors.noPalette'));
+    showToast(t('errors.noPalette'));
     return null;
   }
 
@@ -193,7 +194,7 @@ export function exportPaletteAsImage (canvasElement, filename = 'color_palette.p
     return dataUrl; // Return Data URL so main.js can use fileSaver
   } catch (e) {
     console.error("Error getting data URL from palette canvas:", e);
-    alert(t('errors.paletteExportFailed'));
+    showToast(t('errors.paletteExportFailed'));
     return null;
   }
 }

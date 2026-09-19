@@ -14,6 +14,7 @@ import { setupSphereScene, disposeScene, exportSphereAsImage } from './sphereRen
 import { saveTextFile, saveDataUrlAsFile } from './fileSaver.js'; // Import file saver utilities
 import { rgbToHex } from './colorUtils.js'; // Make sure this is imported
 import { t, initI18n } from './i18n.js'; // Import i18n module
+import { showToast } from './toast.js';
 import { drawSLMapPanel } from './slMapRenderer.js';
 
 // Info-level logs are gated behind this switch; errors and warnings print
@@ -378,7 +379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateParamsFromControls();
 
     debug('Parameters reset to defaults');
-    alert(t('params.reset'));
+    showToast(t('params.reset'));
   }
 
   // Initialize controls
@@ -482,17 +483,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Basic file/blob validation
     if (!file || typeof file.size !== 'number' || typeof file.type !== 'string') {
       console.error("Invalid input: Provided object is not a valid File or Blob.", file);
-      alert(t('errors.invalidFile'));
+      showToast(t('errors.invalidFile'));
       return;
     }
     if (!file.type.startsWith('image/')) {
       console.error("Invalid input: Provided file is not an image type.", file.type);
-      alert(t('errors.notImage'));
+      showToast(t('errors.notImage'));
       return;
     }
     if (file.size === 0) {
       console.warn("Provided file is empty.");
-      alert(t('errors.emptyFile'));
+      showToast(t('errors.emptyFile'));
       return;
     }
 
@@ -695,7 +696,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } else {
           console.error("Failed to get pixel data from canvas or image size is zero.");
-          alert(t('errors.invalidImageData'));
+          showToast(t('errors.invalidImageData'));
           // Cleanup results
           hideLoading();
           hideResults();
@@ -706,7 +707,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       })
       .catch(error => { // <-- Catch and log the actual error object
         console.error("Error during image loading process:", error);
-        alert(t('errors.imageLoadFailed'));
+        showToast(t('errors.imageLoadFailed'));
         // Cleanup results
         hideLoading();
         hideResults();
@@ -844,7 +845,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       // If loop finishes without finding an image file
       console.warn("Dropped data does not contain an image file.");
-      alert(t('errors.notImageFile'));
+      showToast(t('errors.notImageFile'));
 
     } // Fallback for browsers that might not fully support DataTransferItemList
     else if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
@@ -854,11 +855,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         processImageFile(file, file.name);
       } else {
         console.warn("Dropped fallback file is not an image.");
-        alert(t('errors.notImageFile'));
+        showToast(t('errors.notImageFile'));
       }
     } else {
       console.warn("No files found in drop data.");
-      alert(t('errors.notImageFile'));
+      showToast(t('errors.notImageFile'));
     }
   });
 
@@ -920,7 +921,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       saveTextFile(`${currentImageFilename}_palette.json`, jsonString, 'application/json');
     } else {
       console.warn("No analyzed palette data available or image size is zero for export.");
-      alert(t('errors.noPalette'));
+      showToast(t('errors.noPalette'));
     }
   });
 
@@ -934,7 +935,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } else {
       console.warn("Three.js renderer, scene, or camera not available for sphere export.");
-      alert(t('errors.noSphere'));
+      showToast(t('errors.noSphere'));
     }
   });
 

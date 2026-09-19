@@ -1,4 +1,5 @@
 // frontend/js/fileSaver.js
+import { showToast } from './toast.js';
 
 /**
  * Saves text content as a file using Blob and URL.createObjectURL.
@@ -25,7 +26,7 @@ export function saveTextFile (filename, textContent, mimeType = 'text/plain') {
 
   } catch (e) {
     console.error("Error saving text file:", e);
-    alert(`Failed to save file ${filename}.`);
+    showToast(`Failed to save file ${filename}.`);
   }
 }
 
@@ -45,6 +46,6 @@ export function saveDataUrlAsFile (dataUrl, filename) {
 
   } catch (e) {
     console.error("Error saving image file:", e);
-    alert(`Failed to save image ${filename}.`);
+    showToast(`Failed to save image ${filename}.`);
   }
 }
