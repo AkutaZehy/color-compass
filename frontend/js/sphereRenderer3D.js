@@ -11,50 +11,106 @@ let scene, camera, renderer, controls;
 let sphereContainerElement;
 let animationFrameId = null; // To keep track of the animation loop
 
-// Helper mapping functions (defined outside setupScene but used within its scope)
-// They were part of setupScene before, moved here for slightly better organization
+// --- LCh → sphere mapping ("HSL-sphere" style) ------------------------------
+// The sphere is a legend for cylindrical color spaces, drawn as a ball:
+//   vertical axis  = lightness (north pole white L*=100, south pole black L*=0)
+//   longitude      = hue angle h (LCh hue from a*/b*)
+//   radius within a latitude circle = relative chroma C / Cmax(h, L*), the
+//   fraction of the sRGB gamut boundary reached along that hue/lightness ray.
+// Relative chroma (not raw C) is what makes every hue reach the wireframe
+// surface: raw C caps around 100-130 in sRGB and varies per hue (yellows
+// reach ~100, blues ~50), which collapses the cloud into a thin column
+// around the axis and lopsides the top view.
+
 const sphereRadius = 100;
-// Standard Lab ranges: L*[0,100], a*[-128, 128], b*[-128, 128] approx.
-// Map these ranges to the sphere's coordinates.
-// Map L* [0, 100] to Y [-sphereRadius, sphereRadius]. L=50 should be Y=0 (equator).
-const mapLtoY = (l) => (l / 100 - 0.5) * sphereRadius * 2;
 
-// Map a*b* plane to XZ plane (radius from Y axis, and angle).
-// Max chroma is theoretical ~181. Use 200 as a slightly larger mapping range for a*b* magnitude.
-const labMaxChromaForMapping = 200; // Use 200 as max magnitude for a*, b*
-const maxMappedDistanceFromCenter = sphereRadius; // Map max chroma to sphereRadius
+// Inverse of rgbToLab (D65, 2° observer): Lab → linear-light sRGB channels
+function labToRgbLinear (L, a, b) {
+  const eps = 0.008856; // (6/29)^3
+  const kap = 903.3;    // (29/3)^3
 
+  const fy = (L + 16) / 116;
+  const fx = fy + a / 500;
+  const fz = fy - b / 200;
 
-// Helper function to map Lab (a, b) to a 2D vector in XZ plane
-const mapABtoXZ = (a, b) => {
-  const chroma = Math.sqrt(a * a + b * b);
+  const fx3 = fx * fx * fx;
+  const fz3 = fz * fz * fz;
+  const xr = fx3 > eps ? fx3 : (116 * fx - 16) / kap;
+  const yr = L > kap * eps ? Math.pow(fy, 3) : L / kap;
+  const zr = fz3 > eps ? fz3 : (116 * fz - 16) / kap;
 
-  // Map chroma to distance from Y axis, clamped by sphereRadius
-  const distFromY = Math.min(chroma / labMaxChromaForMapping * maxMappedDistanceFromCenter, sphereRadius);
+  // Normalized XYZ × D65 reference white → XYZ on the 0-100 scale
+  const X = xr * 95.047;
+  const Y = yr * 100.000;
+  const Z = zr * 108.883;
 
-  // Calculate hue angle (angle in the a*b* plane)
-  const hueAngle = Math.atan2(b, a); // Angle in radians (Note: Lab b* is Y-axis in a*b* plot)
+  // XYZ → linear sRGB (inverse of the forward matrix used by rgbToLab)
+  const rLin = (3.2406 * X - 1.5372 * Y - 0.4986 * Z) / 100;
+  const gLin = (-0.9689 * X + 1.8758 * Y + 0.0415 * Z) / 100;
+  const bLin = (0.0557 * X - 0.2040 * Y + 1.0570 * Z) / 100;
 
-  // Convert polar (distance, angle) to cartesian (x, z) in the XZ plane
-  const x = distFromY * Math.cos(hueAngle);
-  const z = distFromY * Math.sin(hueAngle);
-  return new THREE.Vector3(x, 0, z); // Return as a 3D vector in the XZ plane
-};
+  return [rLin, gLin, bLin];
+}
 
-// Helper function to map full Lab to a 3D Vector3 coordinate
+function isInSrgbGamut (L, a, b) {
+  const [r, g, bl] = labToRgbLinear(L, a, b);
+  const tol = 1e-4;
+  return r >= -tol && r <= 1 + tol &&
+    g >= -tol && g <= 1 + tol &&
+    bl >= -tol && bl <= 1 + tol;
+}
+
+// Largest chroma inside the sRGB gamut along the (L*, h) ray — binary search
+function maxChromaInGamut (L, hueAngle) {
+  const cosH = Math.cos(hueAngle);
+  const sinH = Math.sin(hueAngle);
+  if (!isInSrgbGamut(L, 0, 0)) return 0;
+  let lo = 0;
+  let hi = 200;
+  for (let i = 0; i < 12; i++) {
+    const mid = (lo + hi) / 2;
+    if (isInSrgbGamut(L, mid * cosH, mid * sinH)) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo;
+}
+
+// Helper function to map full Lab to a 3D Vector3 coordinate on/inside the sphere
 const labToSphereCoords = (lab) => {
   const l = lab[0];
   const a = lab[1];
   const b = lab[2];
 
-  // Map L* to Y coordinate
-  const y = mapLtoY(l);
+  const chroma = Math.sqrt(a * a + b * b);
+  const hueAngle = Math.atan2(b, a);
 
-  // Map a*b* to XZ coordinates
-  const xzVector = mapABtoXZ(a, b);
+  // Colatitude from L*: white at the north pole, black at the south
+  const theta = (1 - l / 100) * Math.PI;
+  const sinTheta = Math.sin(theta);
 
-  // Combine to get the final 3D point (x, y, z)
-  return new THREE.Vector3(xzVector.x, y, xzVector.z);
+  // Relative chroma: how far toward the gamut boundary this color sits
+  const cMax = maxChromaInGamut(l, hueAngle);
+  const sRel = cMax > 1e-6 ? Math.min(1, chroma / cMax) : 0;
+
+  // S_rel = 1 lands exactly on the wireframe sphere; 0 on the lightness axis
+  const horizontal = sinTheta * sRel * sphereRadius;
+
+  return new THREE.Vector3(
+    horizontal * Math.cos(hueAngle),
+    sphereRadius * Math.cos(theta),
+    horizontal * Math.sin(hueAngle)
+  );
+};
+
+// sRGB transfer (0-255 byte → linear-light 0-1): three.js r150+ treats vertex
+// colors as linear working space and converts to sRGB on output, so feeding
+// raw bytes washes every color out.
+const srgbByteToLinear = (c) => {
+  c /= 255;
+  return c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92;
 };
 
 
@@ -215,10 +271,13 @@ export function setupSphereScene (container, pixelData, imageWidth, imageHeight,
     const r = pixelData[dataIndex];
     const g = pixelData[dataIndex + 1];
     const b = pixelData[dataIndex + 2];
-    // Alpha channel pixelData[dataIndex + 3]
+    const alpha = pixelData[dataIndex + 3];
 
-    // Store color as 0-1 for Three.js Color attribute
-    colors.push(r / 255, g / 255, b / 255);
+    // Skip mostly-transparent pixels so invisible areas do not plot
+    if (alpha < 125) continue;
+
+    // Store color as linear-light floats for three.js (r150+ color management)
+    colors.push(srgbByteToLinear(r), srgbByteToLinear(g), srgbByteToLinear(b));
 
     // Calculate Lab and map to 3D coordinates
     const lab = rgbToLab(r, g, b);
@@ -244,12 +303,16 @@ export function setupSphereScene (container, pixelData, imageWidth, imageHeight,
 
   // Create material and points mesh
   const pointsMaterial = new THREE.PointsMaterial({
-    size: 1.5, // Size of each point
+    size: 2.2, // Size of each point (world units, attenuated by distance)
+    sizeAttenuation: true,
     // Use vertexColors only if color attribute was successfully added
     vertexColors: colors.length === positions.length,
     transparent: true,
-    opacity: 0.6, // Make points semi-transparent
-    blending: THREE.AdditiveBlending // Optional: blend colors additively for brighter look
+    opacity: 0.75,
+    // Normal blending keeps dark pixels visible against bright clusters —
+    // additive blending erases the image's dark tail entirely.
+    blending: THREE.NormalBlending,
+    depthWrite: false // Soft, order-independent point cloud without z-fighting
   });
 
   const points = new THREE.Points(pointsGeometry, pointsMaterial);
