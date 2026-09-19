@@ -157,5 +157,8 @@
   },
   "theme": {
     "toggle": "Skeuomorphic UI"
+  },
+  "loading": {
+    "analyzing": "Analyzing…"
   }
 }

@@ -157,5 +157,8 @@
   },
   "theme": {
     "toggle": "拟物界面"
+  },
+  "loading": {
+    "analyzing": "分析中…"
   }
 }

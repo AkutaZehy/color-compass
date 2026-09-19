@@ -168,6 +168,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
   }
 
+  // Loading overlay: heavy analysis steps yield between frames so the
+  // browser can paint instead of freezing on one long task
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const showLoading = () => loadingOverlay && loadingOverlay.classList.add('visible');
+  const hideLoading = () => loadingOverlay && loadingOverlay.classList.remove('visible');
+
   // --- Get HTML Elements ---
   const imageInput = document.getElementById('imageInput'); // File input
   const uploadArea = document.getElementById('uploadArea'); // Drag and drop area
@@ -374,7 +381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initParamControls();
 
   // Add re-render button event listener (REVISED API)
-  reRenderPaletteBtn.addEventListener('click', () => {
+  reRenderPaletteBtn.addEventListener('click', async () => {
     if (currentPixelData && currentImageSize.width > 0 && currentImageSize.height > 0) {
       console.log(`Re-rendering palette with current parameters...`);
 
@@ -382,9 +389,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const totalPixels = currentWorkingSize.width * currentWorkingSize.height;
 
+      showLoading();
+      await nextFrame();
+
       // 1-3. SLIC (cached) -> MMCQ -> edge-aware analysis
       const analyzedPalette = runPalettePipeline();
       console.log(`Palette analyzed (${analyzedPalette.length} colors).`);
+
+      hideLoading();
 
       // Sort and render palette
       sortPalette(analyzedPalette);
@@ -486,12 +498,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentImageFilename = filename ? filename.split('.').slice(0, -1).join('.') || 'image' : 'pasted_image';
 
 
-    // Show loading indicator or message? TODO
+    showLoading();
 
     // Load and display the image using imageHandler
     // loadImageAndDisplay takes a File/Blob, uses FileReader, and loads into an <img>
     loadImageAndDisplay(file, uploadedImage)
-      .then(loadedImgElement => {
+      .then(async loadedImgElement => {
         console.log("Image loading and display successful. Now getting pixel data...");
 
         // Hide upload area, show image
@@ -525,6 +537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           // --- Step 3: Extract, Analyze, and Render Palette ---
           console.log("Extracting and analyzing palette...");
+          await nextFrame(); // let the browser paint the image before the heavy steps
           // 1-3. SLIC (cached) -> MMCQ -> edge-aware analysis
           const analyzedPalette = runPalettePipeline();
           console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
@@ -542,6 +555,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           // --- Step 4: Calculate Stats and Draw 2D Visualizations ---
           console.log("Calculating color stats and drawing 2D visualizations...");
+          await nextFrame(); // palette is visible now; paint before the chart batch
 
           // Calculate stats once with sampling for both basic and advanced visualizations
           // Use sampleFactor=10 for good balance between accuracy and performance
@@ -612,10 +626,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // --- Step 4.5: Draw SL Map Visualizations ---
             console.log("Drawing SL Map visualizations...");
+            await nextFrame(); // charts are on screen; paint before the map batch
             slMapSection.classList.add('visible');
             drawSLMapPanel(clusteredCanvas, sMapCanvas, lMapCanvas, pixelData, actualWidth, actualHeight);
 
             console.log("Color stats calculated and 2D visualizations rendered.");
+
+            // Heavy synchronous steps are done — the sphere sets itself up on
+            // the next frame below, so dismiss the overlay now
+            hideLoading();
 
             // --- Step 5: Setup and Render 3D Sphere ---
             console.log("Preparing to setup 3D color sphere...");
@@ -674,6 +693,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           console.error("Failed to get pixel data from canvas or image size is zero.");
           alert(t('errors.invalidImageData'));
           // Cleanup results
+          hideLoading();
           hideResults();
           disposeScene();
           resetStateVariables();
@@ -684,6 +704,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error("Error during image loading process:", error);
         alert(t('errors.imageLoadFailed'));
         // Cleanup results
+        hideLoading();
         hideResults();
         disposeScene();
         resetStateVariables();

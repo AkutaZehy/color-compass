@@ -1114,3 +1114,26 @@ body.skeuo footer a {
 body.skeuo footer a:hover {
   color: #3d2f0d;
 }
+
+/* Loading overlay (analysis in progress) */
+.loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(10, 10, 18, 0.55);
+  color: #fff;
+  font-size: 1.25em;
+  letter-spacing: 1px;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.loading-overlay.visible {
+  display: flex;
+}
+
+.loading-overlay span {
+  animation: pulse 1.5s ease-in-out infinite;
+}
