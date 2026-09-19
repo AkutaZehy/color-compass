@@ -329,6 +329,20 @@ function pickHiddenSeeds(features, existingSeeds, maxSeeds, contrastThreshold, e
     throw new Error('No initial centroids provided');
   }
 
+  // Precompute Lab for every input when using perceptual ΔE: converting per
+  // pixel per centroid per iteration meant ~length x k x iterations calls to
+  // rgbToLab, each with three Math.pow — minutes on a 2MP image.
+  let inputLab = null;
+  if (useDeltaE) {
+    inputLab = new Float64Array(pixelData.length * 3);
+    for (let i = 0; i < pixelData.length; i++) {
+      const lab = rgbToLab(pixelData[i].r, pixelData[i].g, pixelData[i].b);
+      inputLab[i * 3] = lab[0];
+      inputLab[i * 3 + 1] = lab[1];
+      inputLab[i * 3 + 2] = lab[2];
+    }
+  }
+
   // Initialize centroids from MMCQ results
   let centroids = initialCentroids.map(c => ({
     r: c.r,
@@ -344,6 +358,12 @@ function pickHiddenSeeds(features, existingSeeds, maxSeeds, contrastThreshold, e
     const newCounts = new Array(centroids.length).fill(0);
     const newSums = centroids.map(() => ({ r: 0, g: 0, b: 0, edge: 0, contrast: 0 }));
 
+    // Centroid Lab for this iteration's ΔE comparisons (k conversions, not n)
+    let centroidLab = null;
+    if (useDeltaE) {
+      centroidLab = centroids.map(c => rgbToLab(c.r, c.g, c.b));
+    }
+
     // Assignment step: assign each pixel to nearest centroid
     for (let i = 0; i < pixelData.length; i++) {
       const pixel = pixelData[i];
@@ -352,19 +372,19 @@ function pickHiddenSeeds(features, existingSeeds, maxSeeds, contrastThreshold, e
       let bestCluster = -1;
 
       for (let cIdx = 0; cIdx < centroids.length; cIdx++) {
-        const centroid = centroids[cIdx];
         let dist;
 
         if (useDeltaE) {
-          // Use perceptual ΔE distance in Lab space
-          const lab1 = rgbToLab(pixel.r, pixel.g, pixel.b);
-          const lab2 = rgbToLab(centroid.r, centroid.g, centroid.b);
-          dist = labDistance(lab1, lab2);
+          // Use perceptual ΔE distance in Lab space (precomputed Lab)
+          dist = labDistance(
+            [inputLab[i * 3], inputLab[i * 3 + 1], inputLab[i * 3 + 2]],
+            centroidLab[cIdx]
+          );
         } else {
           // Use RGB Euclidean distance (faster)
           dist = colorDistanceRGB(
             pixel.r, pixel.g, pixel.b,
-            centroid.r, centroid.g, centroid.b
+            centroids[cIdx].r, centroids[cIdx].g, centroids[cIdx].b
           );
         }
 
