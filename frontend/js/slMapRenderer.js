@@ -7,6 +7,27 @@
 import { rgbToHsv, rgbToLab } from './colorUtils.js';
 
 const MAX_MOSAIC_SIZE = 150;
+const DISPLAY_WIDTH = 480; // matches the CSS column the maps display in
+
+/**
+ * Draws a mosaic-res image onto a display-sized canvas with nearest-neighbor
+ * scaling (blocky look preserved). Replaces per-pixel block fills at full
+ * image resolution, which allocated ~2M-pixel ImageData per map.
+ */
+function renderMosaicToCanvas(canvas, mosaic, mosaicWidth, mosaicHeight, imageWidth, imageHeight) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = DISPLAY_WIDTH;
+  canvas.height = Math.max(1, Math.round(DISPLAY_WIDTH * imageHeight / imageWidth));
+
+  const off = document.createElement('canvas');
+  off.width = mosaicWidth;
+  off.height = mosaicHeight;
+  off.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(mosaic), mosaicWidth, mosaicHeight), 0, 0);
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(off, 0, 0, canvas.width, canvas.height);
+}
 
 function createMosaic(pixelData, width, height) {
   const totalPixels = width * height;
@@ -127,11 +148,7 @@ function findNearestColor(pixel, palette) {
  * 1. Mosaic Clustering - Median cut with mosaic downsampling + block fill
  */
 export function drawClusteredImage(canvas, pixelData, width, height, numColors = 16) {
-  const ctx = canvas.getContext('2d');
-  canvas.width = width;
-  canvas.height = height;
-
-  const { mosaicData, mosaicWidth, mosaicHeight, blockSize } = createMosaic(pixelData, width, height);
+  const { mosaicData, mosaicWidth, mosaicHeight } = createMosaic(pixelData, width, height);
 
   const mosaicPixels = [];
   for (let i = 0; i < mosaicData.length; i += 4) {
@@ -140,7 +157,7 @@ export function drawClusteredImage(canvas, pixelData, width, height, numColors =
 
   const palette = medianCut(mosaicPixels, numColors);
 
-  const coloredMosaic = new Uint8Array(mosaicWidth * mosaicHeight * 4);
+  const coloredMosaic = new Uint8ClampedArray(mosaicWidth * mosaicHeight * 4);
   for (let i = 0; i < mosaicPixels.length; i++) {
     const nearest = findNearestColor(mosaicPixels[i], palette);
     const idx = i * 4;
@@ -150,46 +167,16 @@ export function drawClusteredImage(canvas, pixelData, width, height, numColors =
     coloredMosaic[idx + 3] = 255;
   }
 
-  const outputData = ctx.createImageData(width, height);
-  const output = outputData.data;
-
-  for (let my = 0; my < mosaicHeight; my++) {
-    for (let mx = 0; mx < mosaicWidth; mx++) {
-      const colorR = coloredMosaic[(my * mosaicWidth + mx) * 4];
-      const colorG = coloredMosaic[(my * mosaicWidth + mx) * 4 + 1];
-      const colorB = coloredMosaic[(my * mosaicWidth + mx) * 4 + 2];
-
-      const startX = mx * blockSize;
-      const startY = my * blockSize;
-      const endX = Math.min(startX + blockSize, width);
-      const endY = Math.min(startY + blockSize, height);
-
-      for (let y = startY; y < endY; y++) {
-        for (let x = startX; x < endX; x++) {
-          const pixelIdx = (y * width + x) * 4;
-          output[pixelIdx] = colorR;
-          output[pixelIdx + 1] = colorG;
-          output[pixelIdx + 2] = colorB;
-          output[pixelIdx + 3] = 255;
-        }
-      }
-    }
-  }
-
-  ctx.putImageData(outputData, 0, 0);
+  renderMosaicToCanvas(canvas, coloredMosaic, mosaicWidth, mosaicHeight, width, height);
 }
 
 /**
  * 2. S Map - Saturation grayscale with mosaic + block fill
  */
 export function drawSMap(canvas, pixelData, width, height) {
-  const ctx = canvas.getContext('2d');
-  canvas.width = width;
-  canvas.height = height;
+  const { mosaicData, mosaicWidth, mosaicHeight } = createMosaic(pixelData, width, height);
 
-  const { mosaicData, mosaicWidth, mosaicHeight, blockSize } = createMosaic(pixelData, width, height);
-
-  const grayMosaic = new Uint8Array(mosaicWidth * mosaicHeight * 4);
+  const grayMosaic = new Uint8ClampedArray(mosaicWidth * mosaicHeight * 4);
   for (let i = 0; i < mosaicData.length; i += 4) {
     const hsv = rgbToHsv(mosaicData[i], mosaicData[i + 1], mosaicData[i + 2]);
     const gray = Math.round(hsv[1] * 255);
@@ -199,47 +186,19 @@ export function drawSMap(canvas, pixelData, width, height) {
     grayMosaic[i + 3] = 255;
   }
 
-  const outputData = ctx.createImageData(width, height);
-  const output = outputData.data;
-
-  for (let my = 0; my < mosaicHeight; my++) {
-    for (let mx = 0; mx < mosaicWidth; mx++) {
-      const gray = grayMosaic[(my * mosaicWidth + mx) * 4];
-
-      const startX = mx * blockSize;
-      const startY = my * blockSize;
-      const endX = Math.min(startX + blockSize, width);
-      const endY = Math.min(startY + blockSize, height);
-
-      for (let y = startY; y < endY; y++) {
-        for (let x = startX; x < endX; x++) {
-          const pixelIdx = (y * width + x) * 4;
-          output[pixelIdx] = gray;
-          output[pixelIdx + 1] = gray;
-          output[pixelIdx + 2] = gray;
-          output[pixelIdx + 3] = 255;
-        }
-      }
-    }
-  }
-
-  ctx.putImageData(outputData, 0, 0);
+  renderMosaicToCanvas(canvas, grayMosaic, mosaicWidth, mosaicHeight, width, height);
 }
 
 /**
  * 3. L Map - Standard 8-bit posterization with mosaic + block fill
  */
 export function drawLMap(canvas, pixelData, width, height) {
-  const ctx = canvas.getContext('2d');
-  canvas.width = width;
-  canvas.height = height;
-
   const numLevels = 10;
   const levelSize = 256 / numLevels;
 
-  const { mosaicData, mosaicWidth, mosaicHeight, blockSize } = createMosaic(pixelData, width, height);
+  const { mosaicData, mosaicWidth, mosaicHeight } = createMosaic(pixelData, width, height);
 
-  const posterizedMosaic = new Uint8Array(mosaicWidth * mosaicHeight * 4);
+  const posterizedMosaic = new Uint8ClampedArray(mosaicWidth * mosaicHeight * 4);
   for (let i = 0; i < mosaicData.length; i += 4) {
     const [l] = rgbToLab(mosaicData[i], mosaicData[i + 1], mosaicData[i + 2]);
     const normalizedL = Math.round((l / 100) * 255);
@@ -251,31 +210,7 @@ export function drawLMap(canvas, pixelData, width, height) {
     posterizedMosaic[i + 3] = 255;
   }
 
-  const outputData = ctx.createImageData(width, height);
-  const output = outputData.data;
-
-  for (let my = 0; my < mosaicHeight; my++) {
-    for (let mx = 0; mx < mosaicWidth; mx++) {
-      const gray = posterizedMosaic[(my * mosaicWidth + mx) * 4];
-
-      const startX = mx * blockSize;
-      const startY = my * blockSize;
-      const endX = Math.min(startX + blockSize, width);
-      const endY = Math.min(startY + blockSize, height);
-
-      for (let y = startY; y < endY; y++) {
-        for (let x = startX; x < endX; x++) {
-          const pixelIdx = (y * width + x) * 4;
-          output[pixelIdx] = gray;
-          output[pixelIdx + 1] = gray;
-          output[pixelIdx + 2] = gray;
-          output[pixelIdx + 3] = 255;
-        }
-      }
-    }
-  }
-
-  ctx.putImageData(outputData, 0, 0);
+  renderMosaicToCanvas(canvas, posterizedMosaic, mosaicWidth, mosaicHeight, width, height);
 }
 
 export function drawSLMapPanel(clusterCanvas, sMapCanvas, lMapCanvas, pixelData, width, height) {
