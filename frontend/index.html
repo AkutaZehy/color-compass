@@ -20,30 +20,8 @@
       }
     </script>
 
-    <!-- Import Three.js and OrbitControls as ES Modules -->
-    <!-- These rely on the importmap above to resolve their internal 'three' and 'three/addons/' imports -->
-    <script type="module" src="lib/three/build/three.module.js"></script>
-    <script
-      type="module"
-      src="lib/three/examples/jsm/controls/OrbitControls.js"
-    ></script>
-
-    <!-- Import local JavaScript modules -->
-    <!-- The order here matters for dependency loading, but browsers handle it with modules -->
-    <!-- main.js should technically be the last script in the body for DOMContentLoaded, but putting it last here is also fine -->
-    <script type="module" src="js/colorUtils.js"></script>
-    <script type="module" src="js/imageHandler.js"></script>
-    <script type="module" src="js/medianCut.js"></script>
-    <script type="module" src="js/paletteAnalyzer.js"></script>
-    <script type="module" src="js/paletteRenderer.js"></script>
-    <script type="module" src="js/colorStats.js"></script>
-    <script type="module" src="js/visualization2D.js"></script>
-    <script type="module" src="js/visualizationAdvanced.js"></script>
-    <script type="module" src="js/sphereRenderer3D.js"></script>
-    <script type="module" src="js/fileSaver.js"></script>
-    <script type="module" src="js/i18n.js"></script>
-    <script type="module" src="js/slic.js"></script>
-    <script type="module" src="js/slMapRenderer.js"></script>
+    <!-- Entry point. All other modules are loaded through the ES module
+         import graph starting here; three.js resolves via the import map. -->
     <script type="module" src="js/main.js"></script>
   </head>
   <body>

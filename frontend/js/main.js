@@ -9,7 +9,7 @@ import { applySLIC } from './slic.js';
 import { drawPalette, exportPaletteAsImage } from './paletteRenderer.js'; // Import export function
 import { calculateColorStats } from './colorStats.js';
 import { drawHistogram, drawLabScatterPlotRevised } from './visualization2D.js';
-import { drawHuePolarChart, drawHsvSquareChart, drawColorDistanceHeatmap, drawLabDensityChart } from './visualizationAdvanced.js';
+import { drawHuePolarChart, drawColorDistanceHeatmap, drawLabDensityChart } from './visualizationAdvanced.js';
 import { setupSphereScene, disposeScene, exportSphereAsImage } from './sphereRenderer3D.js'; // Import setup, dispose, and export function
 import { saveTextFile, saveDataUrlAsFile } from './fileSaver.js'; // Import file saver utilities
 import { rgbToHex } from './colorUtils.js'; // Make sure this is imported
@@ -27,6 +27,8 @@ let currentImageFilename = 'image'; // Stores the base filename for exports
 let currentImageSize = { width: 0, height: 0 }; // Stores the loaded image dimensions for percentage calculation
 let currentWorkingSize = { width: 0, height: 0 }; // Dimensions of the pixel buffer actually being analyzed (may be downsampled)
 let currentPixelData = null; // Store pixel data to allow re-generating palette/3D from controls
+let currentSuperpixelData = null; // Cached SLIC output, invalidated by param or image changes
+let superpixelCacheKey = ''; // Params the cached superpixel data was computed with
 
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -112,6 +114,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Palette display order
     sortMode: 'percentage'
   };
+
+  /**
+   * SLIC superpixel segmentation with caching: the result only depends on the
+   * pixel buffer, the working size and the two SLIC parameters, so slider
+   * changes that do not touch them can reuse the previous run.
+   */
+  function getSuperpixelData () {
+    const key = `${paletteParams.superpixelCount}|${paletteParams.superpixelCompactness}|${currentWorkingSize.width}x${currentWorkingSize.height}`;
+    if (!paletteParams.useSuperpixels) return null;
+    if (!currentSuperpixelData || superpixelCacheKey !== key) {
+      currentSuperpixelData = applySLIC(
+        currentPixelData,
+        currentWorkingSize.width,
+        currentWorkingSize.height,
+        paletteParams.superpixelCount,
+        paletteParams.superpixelCompactness
+      );
+      superpixelCacheKey = key;
+    }
+    return currentSuperpixelData;
+  }
+
+  /**
+   * The full palette pipeline (SLIC -> MMCQ -> analysis), shared by the initial
+   * image processing path and the re-render button.
+   */
+  function runPalettePipeline () {
+    // 1. SLIC superpixel preprocessing (cached)
+    const superpixelData = getSuperpixelData();
+
+    // 2. MMCQ dominant colors as clustering seeds
+    const dominantColors = extractDominantColors(
+      currentPixelData,
+      paletteParams.dominantColors
+    );
+
+    // 3. Edge-aware analysis
+    return analyzePalette(
+      currentPixelData,
+      dominantColors,
+      {
+        paletteSize: paletteParams.targetPaletteSize,
+        maxHiddenColors: paletteParams.maxHiddenColors,
+        minHiddenPercentage: paletteParams.hiddenColorThreshold,
+        maxBackgrounds: paletteParams.maxBackgrounds,
+        useSuperpixels: paletteParams.useSuperpixels,
+        backgroundVarianceScale: paletteParams.backgroundVarianceScale,
+        superpixelData: superpixelData,
+        useDeltaE: paletteParams.useDeltaE,
+        width: currentWorkingSize.width,
+        height: currentWorkingSize.height,
+        edgeSensitivity: paletteParams.edgeSensitivity,
+        contrastThreshold: paletteParams.contrastThreshold,
+        enableEdgeDetection: true
+      }
+    );
+  }
 
   // --- Get HTML Elements ---
   const imageInput = document.getElementById('imageInput'); // File input
@@ -321,47 +380,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Add re-render button event listener (REVISED API)
   reRenderPaletteBtn.addEventListener('click', () => {
     if (currentPixelData && currentImageSize.width > 0 && currentImageSize.height > 0) {
-      console.log("Re-rendering palette with current parameters...");
+      console.log(`Re-rendering palette with current parameters...`);
 
       console.log(paletteParams);
 
       const totalPixels = currentWorkingSize.width * currentWorkingSize.height;
 
-      // 1. 使用SLIC超像素预处理
-      const superpixelData = applySLIC(
-        currentPixelData,
-        currentWorkingSize.width,
-        currentWorkingSize.height,
-        paletteParams.superpixelCount,
-        paletteParams.superpixelCompactness
-      );
-
-      // 2. 使用MMCQ提取主色
-      const dominantColors = extractDominantColors(
-        currentPixelData,
-        paletteParams.dominantColors
-      );
-
-      // 3. 使用改进的分析算法 (REVISED API)
-      const analyzedPalette = analyzePalette(
-        currentPixelData,
-        dominantColors,
-        {
-          paletteSize: paletteParams.targetPaletteSize,
-          maxHiddenColors: paletteParams.maxHiddenColors,
-          minHiddenPercentage: paletteParams.hiddenColorThreshold,
-          maxBackgrounds: paletteParams.maxBackgrounds,
-          useSuperpixels: paletteParams.useSuperpixels,
-          backgroundVarianceScale: paletteParams.backgroundVarianceScale,
-          superpixelData: superpixelData,
-          useDeltaE: paletteParams.useDeltaE,
-          width: currentWorkingSize.width,
-          height: currentWorkingSize.height,
-          edgeSensitivity: paletteParams.edgeSensitivity,
-          contrastThreshold: paletteParams.contrastThreshold,
-          enableEdgeDetection: true
-        }
-      );
+      // 1-3. SLIC (cached) -> MMCQ -> edge-aware analysis
+      const analyzedPalette = runPalettePipeline();
       console.log(`Palette analyzed (${analyzedPalette.length} colors).`);
 
       // Sort and render palette
@@ -503,42 +529,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           // --- Step 3: Extract, Analyze, and Render Palette ---
           console.log("Extracting and analyzing palette...");
-          // 1. 使用SLIC超像素预处理
-          const superpixelData = applySLIC(
-            currentPixelData,
-            currentWorkingSize.width,
-            currentWorkingSize.height,
-            paletteParams.superpixelCount,
-            paletteParams.superpixelCompactness
-          );
-
-          // 2. 使用MMCQ提取主色
-          const dominantColors = extractDominantColors(
-            currentPixelData,
-            paletteParams.dominantColors
-          );
-
-          // 3. 使用改进的分析算法 (REVISED API)
-          const analyzedPalette = analyzePalette(
-            currentPixelData,
-            dominantColors,
-            {
-              paletteSize: paletteParams.targetPaletteSize,
-              maxHiddenColors: paletteParams.maxHiddenColors,
-              minHiddenPercentage: paletteParams.hiddenColorThreshold,
-              maxBackgrounds: paletteParams.maxBackgrounds,
-          useSuperpixels: paletteParams.useSuperpixels,
-          backgroundVarianceScale: paletteParams.backgroundVarianceScale,
-          superpixelData: superpixelData,
-          useDeltaE: paletteParams.useDeltaE,
-          width: currentWorkingSize.width,
-          height: currentWorkingSize.height,
-          edgeSensitivity: paletteParams.edgeSensitivity,
-          contrastThreshold: paletteParams.contrastThreshold,
-          enableEdgeDetection: true
-        }
-      );
-      console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
+          // 1-3. SLIC (cached) -> MMCQ -> edge-aware analysis
+          const analyzedPalette = runPalettePipeline();
+          console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
 
           // Store the analyzed palette data for export
           currentAnalyzedPalette = analyzedPalette;
@@ -765,6 +758,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentImageSize = { width: 0, height: 0 };
     currentWorkingSize = { width: 0, height: 0 };
     currentPixelData = null; // Clear pixel data
+    currentSuperpixelData = null; // Clear SLIC cache (belongs to the old image)
+    superpixelCacheKey = '';
   }
 
 
@@ -898,7 +893,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         hex: rgbToHex([colorInfo.rgb.r, colorInfo.rgb.g, colorInfo.rgb.b]),
         pixelPercentage: ((colorInfo.count / totalWorkingPixels) * 100).toFixed(1) + '%',
         isBackground: colorInfo.isBackground,
-        isFeature: colorInfo.isFeature
+        isHidden: colorInfo.isHidden
       }));
       const jsonString = JSON.stringify(dataToSave, null, 2);
       saveTextFile(`${currentImageFilename}_palette.json`, jsonString, 'application/json');
