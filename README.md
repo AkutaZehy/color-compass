@@ -37,7 +37,7 @@
         - Color Distance Heatmap: Shows color difference per region to nearest palette color
 
 - **3D Color Space**:
-    - Interactive 3D sphere visualization in Lch color space
+    - Interactive 3D sphere visualization in Lch color space: lightness axis, hue longitude, and gamut-relative chroma as radius, so every hue reaches the sphere surface
     - Mouse/touch controls for rotation and zoom
     - Export high-quality 3D renders
 
@@ -70,17 +70,25 @@ No installation required! Just open the HTML file directly in your browser.
 1. **Direct File**: Open `frontend/index.html` directly
 2. **Local Server** (Recommended for CORS-free access):
     ```bash
-    cd frontend
-    npx serve
+    npm start
+    # or
+    cd frontend && npx serve
     # or
     python -m http.server 8000
     ```
+
+**Tests** (synthetic-image regression suite, runs in Node without a browser):
+
+```bash
+npm test
+```
 
 ### Features
 
 - 🌐 **Internationalization**: English and Chinese
 - 📱 **Responsive Design**: Desktop and mobile
 - ♿ **Accessibility**: Keyboard navigation, ARIA labels, reduced motion support
+- 🎨 **Themes**: Dark theme plus an optional skeuomorphic light "workbench" theme
 - 🎯 **Tunable Parameters**: Adjust algorithm behavior to suit your images
 
 ## 🛠️ Technical Architecture
@@ -91,7 +99,7 @@ No installation required! Just open the HTML file directly in your browser.
 - **Vanilla JavaScript (ES6 Modules)**: Zero framework overhead
 - **Three.js**: 3D visualization (loaded locally)
 - **HTML5 Canvas**: 2D rendering and image processing
-- **Modern CSS**: Dark theme with responsive layout
+- **Modern CSS**: Dark theme plus optional skeuomorphic light theme, responsive layout
 
 ### Module Structure
 
@@ -113,6 +121,7 @@ frontend/
 │   ├── visualizationAdvanced.js # Advanced visualizations
 │   ├── slMapRenderer.js     # S-L Map visualizations
 │   ├── sphereRenderer3D.js # 3D Lch color sphere
+│   ├── toast.js           # Non-blocking notifications
 │   ├── fileSaver.js       # Export utilities
 │   └── i18n.js            # Internationalization
 ├── i18n/
@@ -158,25 +167,26 @@ frontend/
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  4. Hidden Color Detection                                           │
-│     Criteria for hidden colors:                                      │
-│     - High edge strength (at object boundaries)                      │
-│     - High local contrast (stands out from surroundings)             │
-│     - Hue uniqueness (color outlier in distribution)                 │
-│     - Small but above minimum threshold                              │
+│     - High-contrast / edge-strong superpixels far from existing      │
+│       seeds become extra cluster centroids (so small important       │
+│       colors can win a cluster instead of being absorbed)            │
+│     - Small clusters are tagged using edge strength, local           │
+│       contrast, or hue uniqueness                                    │
 └─────────────────────────────────────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  5. Background Color Detection                                       │
 │     - Samples edge pixels (background usually at edges)              │
-│     - Finds clusters present at image boundaries                    │
+│     - Finds clusters present at image boundaries                     │
 │     - Prioritizes large connected regions                            │
 └─────────────────────────────────────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        FINAL PALETTE                                 │
-│     - Sorted by L* luminance                                        │
+│     - Sorted by the selected order (population by default;           │
+│       luminance and hue available)                                   │
 │     - Tagged with: isBackground, isHidden                            │
 │     - Each color: RGB, Lab, count, percentage                        │
 └─────────────────────────────────────────────────────────────────────┘
@@ -206,10 +216,11 @@ frontend/
 
 Hidden colors are colors that are **small in quantity but important in meaning** (e.g., a small insect on a leaf, text on a sign). Our algorithm detects them using:
 
-1. **Edge Strength**: Colors at object boundaries often indicate important transitions
-2. **Local Contrast**: Colors that contrast sharply with surroundings are perceptually significant
-3. **Hue Uniqueness**: Colors that are outliers in the hue distribution may be meaningful
-4. **Size Threshold**: Only considers colors above a minimum pixel ratio to filter noise
+1. **Seeding**: superpixels with high local contrast or edge strength that sit far from the MMCQ seeds are added as extra K-means centroids, so a rare vivid color can win its own cluster instead of being absorbed by a dominant neighbor
+2. **Edge Strength**: colors at object boundaries often indicate important transitions
+3. **Local Contrast**: colors that contrast sharply with surroundings are perceptually significant
+4. **Hue Uniqueness**: colors that are outliers in the circular hue distribution may be meaningful
+5. **Size Threshold**: only considers colors above a minimum pixel ratio to filter noise
 
 ## 🌍 Internationalization
 
