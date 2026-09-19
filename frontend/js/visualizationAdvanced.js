@@ -107,16 +107,17 @@ export function drawHuePolarChart(canvas, hValues, title = '色相分布') {
   ctx.arc(centerX, centerY, minRadius - 2, 0, Math.PI * 2);
   ctx.fill();
 
-  // Draw hue labels
+  // Draw hue labels — HSV hue wheel: red 0°, yellow 60°, green 120°, cyan
+  // 180°, blue 240°, magenta 300° (clockwise from the top)
   ctx.fillStyle = '#888';
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'center';
 
-  const labelHues = [0, 3, 6, 9]; // Red, Yellow, Green, Blue
-  const labelNames = ['R', 'Y', 'G', 'B'];
+  const labelBins = [0, 6, 12, 18, 24, 30]; // of 36 bins = every 60°
+  const labelNames = ['R', 'Y', 'G', 'C', 'B', 'M'];
 
-  labelHues.forEach((h, i) => {
-    const angle = (h / 12) * Math.PI * 2 - Math.PI / 2;
+  labelBins.forEach((bin, i) => {
+    const angle = (bin / 36) * Math.PI * 2 - Math.PI / 2;
     const labelR = maxRadius + 15;
     ctx.fillText(
       labelNames[i],
