@@ -337,49 +337,53 @@ function enforceConnectivity(labels, width, height) {
   const avgSegmentSize = (width * height) / (new Set(labels).size);
   const minSegmentSize = Math.max(10, Math.floor(avgSegmentSize * 0.005));
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = y * width + x;
-      if (visited[idx]) continue;
+  // Flood-fill queue: flat index buffer with a moving head instead of
+  // Array.shift(), which is O(n) per call and O(n^2) per component.
+  const queue = new Int32Array(width * height);
+  let component = [];
 
-      // Flood fill to find connected component
-      const component = [];
-      const queue = [{ x, y }];
-      visited[idx] = 1;
+  for (let start = 0; start < labels.length; start++) {
+    if (visited[start]) continue;
+    visited[start] = 1;
 
-      while (queue.length > 0) {
-        const { x: cx, y: cy } = queue.shift();
-        component.push(cy * width + cx);
+    const startLabel = labels[start];
 
-        // 4-way connectivity
-        const neighbors = [
-          { x: cx - 1, y: cy },
-          { x: cx + 1, y: cy },
-          { x: cx, y: cy - 1 },
-          { x: cx, y: cy + 1 }
-        ];
+    // Collect one connected component (4-way) into a flat queue
+    let head = 0;
+    let tail = 0;
+    queue[tail++] = start;
+    component.length = 0;
 
-        for (const n of neighbors) {
-          if (n.x >= 0 && n.x < width && n.y >= 0 && n.y < height) {
-            const nIdx = n.y * width + n.x;
-            if (!visited[nIdx] && labels[nIdx] === labels[idx]) {
-              visited[nIdx] = 1;
-              queue.push(n);
-            }
-          }
-        }
+    while (head < tail) {
+      const idx = queue[head++];
+      component.push(idx);
+
+      const x = idx % width;
+      const y = (idx - x) / width;
+
+      // Left, right, up, down
+      if (x > 0) visitNeighbor(idx - 1);
+      if (x < width - 1) visitNeighbor(idx + 1);
+      if (y > 0) visitNeighbor(idx - width);
+      if (y < height - 1) visitNeighbor(idx + width);
+    }
+
+    function visitNeighbor(nIdx) {
+      if (!visited[nIdx] && labels[nIdx] === startLabel) {
+        visited[nIdx] = 1;
+        queue[tail++] = nIdx;
       }
+    }
 
-      // Assign label based on component size
-      if (component.length >= minSegmentSize) {
-        const label = labels[component[0]];
-        if (!labelMap.has(label)) {
-          labelMap.set(label, currentLabel++);
-        }
-        const newLabel = labelMap.get(label);
-        for (const pos of component) {
-          cleanedLabels[pos] = newLabel;
-        }
+    // Assign label based on component size
+    if (component.length >= minSegmentSize) {
+      const label = labels[start];
+      if (!labelMap.has(label)) {
+        labelMap.set(label, currentLabel++);
+      }
+      const newLabel = labelMap.get(label);
+      for (let i = 0; i < component.length; i++) {
+        cleanedLabels[component[i]] = newLabel;
       }
     }
   }
