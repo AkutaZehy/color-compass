@@ -16,6 +16,10 @@ import { rgbToHex } from './colorUtils.js'; // Make sure this is imported
 import { t, initI18n } from './i18n.js'; // Import i18n module
 import { drawSLMapPanel } from './slMapRenderer.js';
 
+// Info-level logs are gated behind this switch; errors and warnings print
+const DEBUG = false;
+const debug = (...args) => { if (DEBUG) console.log(...args); };
+
 
 // --- State Variables ---
 // Variables to store data/objects needed for export buttons, cleanup, and re-processing
@@ -78,7 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateLangButtons(getLocale());
   }
 
-  console.log("DOM fully loaded and parsed.");
+  debug("DOM fully loaded and parsed.");
 
   // --- Palette Parameters with Default Values ---
   // REVISED: Simplified parameter system to avoid conflicts
@@ -373,7 +377,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Update displayed values
     updateParamsFromControls();
 
-    console.log('Parameters reset to defaults');
+    debug('Parameters reset to defaults');
     alert(t('params.reset'));
   }
 
@@ -383,9 +387,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Add re-render button event listener (REVISED API)
   reRenderPaletteBtn.addEventListener('click', async () => {
     if (currentPixelData && currentImageSize.width > 0 && currentImageSize.height > 0) {
-      console.log(`Re-rendering palette with current parameters...`);
+      debug(`Re-rendering palette with current parameters...`);
 
-      console.log(paletteParams);
+      debug(paletteParams);
 
       const totalPixels = currentWorkingSize.width * currentWorkingSize.height;
 
@@ -394,7 +398,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // 1-3. SLIC (cached) -> MMCQ -> edge-aware analysis
       const analyzedPalette = runPalettePipeline();
-      console.log(`Palette analyzed (${analyzedPalette.length} colors).`);
+      debug(`Palette analyzed (${analyzedPalette.length} colors).`);
 
       hideLoading();
 
@@ -405,7 +409,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Store the new palette
       currentAnalyzedPalette = analyzedPalette;
 
-      console.log("Palette re-rendered with current parameters.");
+      debug("Palette re-rendered with current parameters.");
     } else {
       console.warn("Cannot re-render palette: no pixel data available.");
     }
@@ -493,7 +497,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
 
-    console.log(`Processing image: ${filename}`);
+    debug(`Processing image: ${filename}`);
     // Set base filename, removing extension. Use 'image' as fallback.
     currentImageFilename = filename ? filename.split('.').slice(0, -1).join('.') || 'image' : 'pasted_image';
 
@@ -504,7 +508,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // loadImageAndDisplay takes a File/Blob, uses FileReader, and loads into an <img>
     loadImageAndDisplay(file, uploadedImage)
       .then(async loadedImgElement => {
-        console.log("Image loading and display successful. Now getting pixel data...");
+        debug("Image loading and display successful. Now getting pixel data...");
 
         // Hide upload area, show image
         document.querySelector('.upload-area').classList.add('hidden');
@@ -530,17 +534,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const totalPixels = actualWidth * actualHeight;
 
         if (pixelData && totalPixels > 0) {
-          console.log(`Successfully retrieved pixel data: ${pixelData.length} bytes for ${actualWidth}x${actualHeight} working buffer (original ${currentImageSize.width}x${currentImageSize.height}).`);
+          debug(`Successfully retrieved pixel data: ${pixelData.length} bytes for ${actualWidth}x${actualHeight} working buffer (original ${currentImageSize.width}x${currentImageSize.height}).`);
 
           // Store pixel data globally for potential re-processing (e.g., palette options)
           currentPixelData = pixelData;
 
           // --- Step 3: Extract, Analyze, and Render Palette ---
-          console.log("Extracting and analyzing palette...");
+          debug("Extracting and analyzing palette...");
           await nextFrame(); // let the browser paint the image before the heavy steps
           // 1-3. SLIC (cached) -> MMCQ -> edge-aware analysis
           const analyzedPalette = runPalettePipeline();
-          console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
+          debug(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
 
           // Store the analyzed palette data for export
           currentAnalyzedPalette = analyzedPalette;
@@ -550,11 +554,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           // Draw palette to canvas (This function also handles showing palette buttons)
           drawPalette(analyzedPalette, paletteCanvas, totalPixels);
-          console.log("Palette rendered to canvas.");
+          debug("Palette rendered to canvas.");
 
 
           // --- Step 4: Calculate Stats and Draw 2D Visualizations ---
-          console.log("Calculating color stats and drawing 2D visualizations...");
+          debug("Calculating color stats and drawing 2D visualizations...");
           await nextFrame(); // palette is visible now; paint before the chart batch
 
           // Calculate stats once with sampling for both basic and advanced visualizations
@@ -588,7 +592,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
             // Draw Advanced Visualizations using the same sampled data
-            console.log("Drawing advanced visualizations...");
+            debug("Drawing advanced visualizations...");
 
             // Get canvas elements
             const huePolarCanvas = document.getElementById('huePolar');
@@ -625,19 +629,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             // --- Step 4.5: Draw SL Map Visualizations ---
-            console.log("Drawing SL Map visualizations...");
+            debug("Drawing SL Map visualizations...");
             await nextFrame(); // charts are on screen; paint before the map batch
             slMapSection.classList.add('visible');
             drawSLMapPanel(clusteredCanvas, sMapCanvas, lMapCanvas, pixelData, actualWidth, actualHeight);
 
-            console.log("Color stats calculated and 2D visualizations rendered.");
+            debug("Color stats calculated and 2D visualizations rendered.");
 
             // Heavy synchronous steps are done — the sphere sets itself up on
             // the next frame below, so dismiss the overlay now
             hideLoading();
 
             // --- Step 5: Setup and Render 3D Sphere ---
-            console.log("Preparing to setup 3D color sphere...");
+            debug("Preparing to setup 3D color sphere...");
 
             // Show the container BEFORE setup so it has dimensions
             spherePlaceholder.style.display = 'none';
@@ -645,7 +649,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Use requestAnimationFrame to wait for layout calculation before 3D setup
             requestAnimationFrame(() => {
-              console.log("Attempting to setup 3D color sphere after next frame...");
+              debug("Attempting to setup 3D color sphere after next frame...");
 
               // Re-get container element inside raf - although not strictly needed
               const sphereContainer = document.getElementById('sphereContainer');
@@ -656,7 +660,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               const sphereSceneInfo = setupSphereScene(sphereContainer, pixelData, actualWidth, actualHeight, 200);
 
               if (sphereSceneInfo) { // Check if setup was successful (returned non-null)
-                console.log("3D scene setup successful.");
+                debug("3D scene setup successful.");
                 // Store the references returned by setupSphereScene
                 currentSphereRenderer = sphereSceneInfo.renderer;
                 currentScene = sphereSceneInfo.scene;
@@ -672,7 +676,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const sphereExportButtonsDiv = document.querySelector('.color-sphere-section .export-buttons'); // Re-get button div
                 if (sphereExportButtonsDiv) sphereExportButtonsDiv.style.display = 'none'; // Ensure buttons are hidden
               }
-              console.log("3D color sphere setup sequence complete.");
+              debug("3D color sphere setup sequence complete.");
             }); // End of requestAnimationFrame callback
 
 
@@ -686,7 +690,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (sphereExportButtonsDiv) sphereExportButtonsDiv.style.display = 'none';
           }
 
-          console.log("\nProcessing complete for image.");
+          debug("\nProcessing complete for image.");
 
 
         } else {
@@ -789,7 +793,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const selectedFile = files[0];
       processImageFile(selectedFile, selectedFile.name);
     } else {
-      console.log("File selection cancelled.");
+      debug("File selection cancelled.");
       // Cleanup results and state
       hideResults();
       disposeScene();
@@ -832,7 +836,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (item.kind === 'file' && item.type.startsWith('image/')) {
           const file = item.getAsFile(); // Get the File object
           if (file) {
-            console.log(`Dropped item is an image file: ${file.type}`);
+            debug(`Dropped item is an image file: ${file.type}`);
             processImageFile(file, file.name); // Process the dropped file
             return; // Stop checking other items
           }
@@ -846,7 +850,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
       const file = event.dataTransfer.files[0]; // Get the first file
       if (file.type.startsWith('image/')) {
-        console.log(`Dropped fallback file is an image: ${file.type}`);
+        debug(`Dropped fallback file is an image: ${file.type}`);
         processImageFile(file, file.name);
       } else {
         console.warn("Dropped fallback file is not an image.");
@@ -861,7 +865,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 3. Paste Listener (on the whole document)
   document.addEventListener('paste', (event) => {
-    console.log("Paste event fired.");
+    debug("Paste event fired.");
     // Check if clipboard data contains items
     if (event.clipboardData && event.clipboardData.items) {
       // Iterate through clipboard items
@@ -872,7 +876,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           event.preventDefault(); // Prevent default paste behavior (e.g., pasting as text)
           const file = item.getAsFile(); // Get the File object (or Blob)
           if (file) {
-            console.log(`Pasted item is an image file: ${file.type} (${file.size} bytes)`);
+            debug(`Pasted item is an image file: ${file.type} (${file.size} bytes)`);
             // Use a generic filename like "pasted_image.png"
             // getAsFile() might return null in some cases depending on browser/content
             // Ensure file is not null before processing
@@ -885,7 +889,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     // If no image file found in clipboard, let default paste happen (e.g., pasting text)
-    console.log("No image file found in paste data.");
+    debug("No image file found in paste data.");
   });
 
 
@@ -893,7 +897,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // These access the global state variables (currentAnalyzedPalette, currentSphereRenderer etc.)
 
   savePaletteImageBtn.addEventListener('click', () => {
-    console.log("Save Palette Image button clicked.");
+    debug("Save Palette Image button clicked.");
     const dataUrl = exportPaletteAsImage(paletteCanvas);
     if (dataUrl) {
       saveDataUrlAsFile(dataUrl, `${currentImageFilename}_palette.png`);
@@ -901,7 +905,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   savePaletteDataBtn.addEventListener('click', () => {
-    console.log("Save Palette Data button clicked.");
+    debug("Save Palette Data button clicked.");
     // Check if data and image size are available
     if (currentAnalyzedPalette && currentWorkingSize.width > 0 && currentWorkingSize.height > 0) {
       const totalWorkingPixels = currentWorkingSize.width * currentWorkingSize.height;
@@ -921,7 +925,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   saveSphereImageBtn.addEventListener('click', () => {
-    console.log("Save Sphere Image button clicked.");
+    debug("Save Sphere Image button clicked.");
     // Need the renderer, scene, and camera instances
     if (currentSphereRenderer && currentScene && currentCamera) {
       const dataUrl = exportSphereAsImage(currentSphereRenderer, currentScene, currentCamera);
@@ -935,5 +939,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
 
-  console.log("main.js script finished execution. Waiting for user interaction.");
+  debug("main.js script finished execution. Waiting for user interaction.");
 });
