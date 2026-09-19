@@ -1,113 +1,123 @@
 /**
- * Modified Median Cut Quantization (MMCQ) algorithm for dominant color extraction
- * 
- * @param {Uint8Array} pixelData - Image pixel data in RGBA format
+ * Modified Median Cut Quantization (MMCQ) for dominant color extraction.
+ *
+ * Color Thief-style implementation: pixels are quantized into a 5-bit-per-channel
+ * histogram (32768 bins max), and color cubes ("vboxes") are split along their
+ * longest axis at the population median. Unlike the previous object-per-pixel
+ * version, the histogram preserves rare-but-distinct colors (no averaging pool),
+ * and cubes that cannot be split are protected, so no NaN swatches can appear.
+ *
+ * @param {Uint8Array|Uint8ClampedArray} pixelData - Image pixel data in RGBA format
  * @param {number} colorCount - Number of dominant colors to extract
- * @returns {Array} - Array of dominant colors in RGB format
+ * @returns {Array<{r:number,g:number,b:number}>} Dominant colors (population-weighted means)
  */
-export function extractDominantColors (pixelData, colorCount, useDownsampling = true) {
-  // Convert pixel data to color cubes
-  const cubes = [createInitialColorCube(pixelData, useDownsampling)];
+export function extractDominantColors (pixelData, colorCount) {
+  const histo = buildHistogram(pixelData);
 
-  // Split cubes until we have the desired number of colors
+  const cubes = [createInitialCube(histo)];
+
   while (cubes.length < colorCount) {
-    // Find the cube with the largest range
-    const cubeToSplit = findCubeWithLargestRange(cubes);
-
-    // Split the cube along the axis with the largest range
-    const [cube1, cube2] = splitColorCube(cubeToSplit);
-
-    // Replace the original cube with the two new cubes
-    cubes.splice(cubes.indexOf(cubeToSplit), 1, cube1, cube2);
-  }
-
-  // Calculate average colors for each cube
-  return cubes.map(cube => calculateAverageColor(cube));
-}
-
-// Helper functions
-
-function downsamplePixelData (pixelData) {
-  const downsampled = [];
-
-  // Calculate total pixels (RGBA = 4 values per pixel)
-  const totalPixels = pixelData.length / 4;
-
-  // If already below threshold, return original
-  if (totalPixels <= 1e4) return pixelData;
-
-  // Calculate n for n*n pooling to reduce to ~1e5 pixels
-  const n = Math.ceil(Math.sqrt(totalPixels / 1e4));
-  const blockSize = n * n;
-  const blockStride = n * 4; // n pixels in RGBA format
-
-  // n*n average pooling
-  for (let i = 0; i < pixelData.length; i += blockStride) {
-    // Skip incomplete blocks
-    if (i + (blockSize - 1) * 4 >= pixelData.length) continue;
-
-    let sumR = 0, sumG = 0, sumB = 0;
-    let count = 0;
-
-    // Sum values in current block
-    for (let j = 0; j < blockSize; j++) {
-      const idx = i + j * 4;
-      if (idx >= pixelData.length) break;
-
-      sumR += pixelData[idx];
-      sumG += pixelData[idx + 1];
-      sumB += pixelData[idx + 2];
-      count++;
+    // Pick the splittable cube with the highest population x volume priority,
+    // the same heuristic Color Thief uses: large AND diverse regions get split first.
+    let bestIdx = -1;
+    let bestPriority = 0;
+    for (let i = 0; i < cubes.length; i++) {
+      const cube = cubes[i];
+      if (!canSplit(cube)) continue;
+      const priority = cube.count * cube.volume;
+      if (priority > bestPriority) {
+        bestPriority = priority;
+        bestIdx = i;
+      }
     }
 
-    // Calculate average and add to result
-    downsampled.push(
-      Math.round(sumR / count),
-      Math.round(sumG / count),
-      Math.round(sumB / count),
-      255 // Alpha channel
-    );
+    // No cube can be split any further (e.g. a flat-color image) — stop early
+    // instead of producing empty cubes with NaN averages.
+    if (bestIdx < 0) break;
+
+    const parts = splitCube(cubes[bestIdx]);
+    cubes.splice(bestIdx, 1, ...parts);
   }
 
-  return new Uint8Array(downsampled);
+  return cubes.map(calculateAverageColor);
 }
 
-function createInitialColorCube (pixelData, useDownsampling = true) {
-  // Apply downsampling if enabled
+// ---------------------------------------------------------------------------
+// Histogram: 5 bits per channel, index = r << 10 | g << 5 | b
+// ---------------------------------------------------------------------------
 
-  const processedData = useDownsampling ? downsamplePixelData(pixelData) : pixelData;
+const BITS = 5;
+const LEVELS = 1 << BITS; // 32
+const MAX_INDEX = LEVELS * LEVELS * LEVELS; // 32768
 
+function buildHistogram (pixelData) {
+  const counts = new Int32Array(MAX_INDEX);
+  // Per-bin channel sums for exact population-weighted averages later
+  const sumR = new Float64Array(MAX_INDEX);
+  const sumG = new Float64Array(MAX_INDEX);
+  const sumB = new Float64Array(MAX_INDEX);
+
+  for (let i = 0; i < pixelData.length; i += 4) {
+    // Skip mostly-transparent pixels so invisible areas do not skew the palette
+    if (pixelData[i + 3] < 125) continue;
+
+    const r = pixelData[i];
+    const g = pixelData[i + 1];
+    const b = pixelData[i + 2];
+    const idx = ((r >> (8 - BITS)) << (BITS * 2)) | ((g >> (8 - BITS)) << BITS) | (b >> (8 - BITS));
+
+    counts[idx]++;
+    sumR[idx] += r;
+    sumG[idx] += g;
+    sumB[idx] += b;
+  }
+
+  // Compact the histogram into a list of occupied bins for fast iteration
+  const bins = [];
+  for (let idx = 0; idx < MAX_INDEX; idx++) {
+    if (counts[idx] > 0) {
+      bins.push({
+        idx,
+        count: counts[idx],
+        sumR: sumR[idx],
+        sumG: sumG[idx],
+        sumB: sumB[idx]
+      });
+    }
+  }
+
+  return bins;
+}
+
+// ---------------------------------------------------------------------------
+// Cubes ("vboxes")
+// ---------------------------------------------------------------------------
+
+function createInitialCube (bins) {
   const cube = {
-    pixels: [],
+    bins: bins.slice(),
+    count: 0,
     minR: 255, maxR: 0,
     minG: 255, maxG: 0,
-    minB: 255, maxB: 0
+    minB: 255, maxB: 0,
+    volume: 0
   };
+  refreshCubeBounds(cube);
+  return cube;
+}
 
-  // Process pixel data and find min/max values
-  // for (let i = 0; i < pixelData.length; i += 4) {
-  //   const r = pixelData[i];
-  //   const g = pixelData[i + 1];
-  //   const b = pixelData[i + 2];
+function refreshCubeBounds (cube) {
+  cube.count = 0;
+  cube.minR = 255; cube.maxR = 0;
+  cube.minG = 255; cube.maxG = 0;
+  cube.minB = 255; cube.maxB = 0;
 
-  //   cube.pixels.push({ r, g, b });
+  for (const bin of cube.bins) {
+    const r = (bin.idx >> (BITS * 2)) & (LEVELS - 1);
+    const g = (bin.idx >> BITS) & (LEVELS - 1);
+    const b = bin.idx & (LEVELS - 1);
 
-  //   // Update min/max values
-  //   if (r < cube.minR) cube.minR = r;
-  //   if (r > cube.maxR) cube.maxR = r;
-  //   if (g < cube.minG) cube.minG = g;
-  //   if (g > cube.maxG) cube.maxG = g;
-  //   if (b < cube.minB) cube.minB = b;
-  //   if (b > cube.maxB) cube.maxB = b;
-  // }
-  for (let i = 0; i < processedData.length; i += 4) {
-    const r = processedData[i];
-    const g = processedData[i + 1];
-    const b = processedData[i + 2];
-
-    cube.pixels.push({ r, g, b });
-
-    // Update min/max values
+    cube.count += bin.count;
     if (r < cube.minR) cube.minR = r;
     if (r > cube.maxR) cube.maxR = r;
     if (g < cube.minG) cube.minG = g;
@@ -116,96 +126,84 @@ function createInitialColorCube (pixelData, useDownsampling = true) {
     if (b > cube.maxB) cube.maxB = b;
   }
 
-  return cube;
+  // Bins were dropped (e.g. all pixels transparent) — clamp to an empty cube
+  if (cube.count === 0) {
+    cube.minR = cube.maxR = cube.minG = cube.maxG = cube.minB = cube.maxB = 0;
+  }
+
+  cube.volume = (cube.maxR - cube.minR + 1) *
+    (cube.maxG - cube.minG + 1) *
+    (cube.maxB - cube.minB + 1);
 }
 
-function findCubeWithLargestRange (cubes) {
-  let maxRange = -1;
-  let selectedCube = null;
-
-  cubes.forEach(cube => {
-    const rangeR = cube.maxR - cube.minR;
-    const rangeG = cube.maxG - cube.minG;
-    const rangeB = cube.maxB - cube.minB;
-
-    const maxCubeRange = Math.max(rangeR, rangeG, rangeB);
-
-    if (maxCubeRange > maxRange) {
-      maxRange = maxCubeRange;
-      selectedCube = cube;
-    }
-  });
-
-  return selectedCube;
+function canSplit (cube) {
+  // A cube splits only if it holds pixels on both sides of some channel median:
+  // more than one occupied bin AND a non-degenerate range along some axis.
+  // A locked cube failed a previous median cut and must not be retried.
+  return !cube.locked &&
+    cube.bins.length > 1 &&
+    (cube.maxR > cube.minR || cube.maxG > cube.minG || cube.maxB > cube.minB);
 }
 
-function splitColorCube (cube) {
-  // Determine which color channel has the largest range
+function splitCube (cube) {
   const rangeR = cube.maxR - cube.minR;
   const rangeG = cube.maxG - cube.minG;
   const rangeB = cube.maxB - cube.minB;
-
   const maxRange = Math.max(rangeR, rangeG, rangeB);
-  let sortBy = 'r';
 
-  if (maxRange === rangeG) {
-    sortBy = 'g';
-  } else if (maxRange === rangeB) {
-    sortBy = 'b';
+  // Sort occupied bins by the widest channel
+  const shift = maxRange === rangeR ? (BITS * 2) : maxRange === rangeG ? BITS : 0;
+  const mask = LEVELS - 1;
+  cube.bins.sort((a, b) => ((a.idx >> shift) & mask) - ((b.idx >> shift) & mask));
+
+  // Walk cumulative population to the median (Color Thief's count-based cut):
+  // find the first bin index m where cumulative(0..m) reaches half the cube's
+  // population; bins [0..m) form cube1, [m..] form cube2. If the median is
+  // never reached, the last bin carries the mass and becomes cube2 alone.
+  const halfCount = cube.count / 2;
+  let cumulative = 0;
+  let medianIndex = cube.bins.length - 1;
+  for (let i = 0; i < cube.bins.length - 1; i++) {
+    cumulative += cube.bins[i].count;
+    if (cumulative >= halfCount) {
+      medianIndex = i + 1;
+      break;
+    }
   }
 
-  // Sort pixels by the selected channel
-  cube.pixels.sort((a, b) => a[sortBy] - b[sortBy]);
+  const cube1 = { bins: cube.bins.slice(0, medianIndex), count: 0, minR: 255, maxR: 0, minG: 255, maxG: 0, minB: 255, maxB: 0, volume: 0 };
+  const cube2 = { bins: cube.bins.slice(medianIndex), count: 0, minR: 255, maxR: 0, minG: 255, maxG: 0, minB: 255, maxB: 0, volume: 0 };
+  refreshCubeBounds(cube1);
+  refreshCubeBounds(cube2);
 
-  // Find median index
-  const medianIndex = Math.floor(cube.pixels.length / 2);
-
-  // Create two new cubes
-  const cube1 = {
-    pixels: cube.pixels.slice(0, medianIndex),
-    minR: 255, maxR: 0,
-    minG: 255, maxG: 0,
-    minB: 255, maxB: 0
-  };
-
-  const cube2 = {
-    pixels: cube.pixels.slice(medianIndex),
-    minR: 255, maxR: 0,
-    minG: 255, maxG: 0,
-    minB: 255, maxB: 0
-  };
-
-  // Calculate new min/max for each cube
-  updateCubeMinMax(cube1);
-  updateCubeMinMax(cube2);
+  // Degenerate split (all population on one side of the median): this cube
+  // cannot be cut further. Lock it and return it unchanged so the caller
+  // makes no progress with it and never sees an empty cube.
+  if (cube1.count === 0 || cube2.count === 0) {
+    cube.locked = true;
+    return [cube];
+  }
 
   return [cube1, cube2];
 }
 
-function updateCubeMinMax (cube) {
-  cube.pixels.forEach(pixel => {
-    if (pixel.r < cube.minR) cube.minR = pixel.r;
-    if (pixel.r > cube.maxR) cube.maxR = pixel.r;
-    if (pixel.g < cube.minG) cube.minG = pixel.g;
-    if (pixel.g > cube.maxG) cube.maxG = pixel.g;
-    if (pixel.b < cube.minB) cube.minB = pixel.b;
-    if (pixel.b > cube.maxB) cube.maxB = pixel.b;
-  });
-}
-
 function calculateAverageColor (cube) {
-  let sumR = 0, sumG = 0, sumB = 0;
-  const count = cube.pixels.length;
+  if (cube.count === 0) {
+    // Should be unreachable (protected by canSplit/degenerate handling),
+    // guarded here so a palette color can never be NaN.
+    return { r: 0, g: 0, b: 0 };
+  }
 
-  cube.pixels.forEach(pixel => {
-    sumR += pixel.r;
-    sumG += pixel.g;
-    sumB += pixel.b;
-  });
+  let sumR = 0, sumG = 0, sumB = 0;
+  for (const bin of cube.bins) {
+    sumR += bin.sumR;
+    sumG += bin.sumG;
+    sumB += bin.sumB;
+  }
 
   return {
-    r: Math.round(sumR / count),
-    g: Math.round(sumG / count),
-    b: Math.round(sumB / count)
+    r: Math.round(sumR / cube.count),
+    g: Math.round(sumG / cube.count),
+    b: Math.round(sumB / cube.count)
   };
 }
