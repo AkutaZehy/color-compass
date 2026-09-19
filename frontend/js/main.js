@@ -25,6 +25,7 @@ let currentScene = null; // Stores the Three.js scene instance
 let currentCamera = null; // Stores the Three.js camera instance
 let currentImageFilename = 'image'; // Stores the base filename for exports
 let currentImageSize = { width: 0, height: 0 }; // Stores the loaded image dimensions for percentage calculation
+let currentWorkingSize = { width: 0, height: 0 }; // Dimensions of the pixel buffer actually being analyzed (may be downsampled)
 let currentPixelData = null; // Store pixel data to allow re-generating palette/3D from controls
 
 
@@ -289,13 +290,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       console.log(paletteParams);
 
-      const totalPixels = currentImageSize.width * currentImageSize.height;
+      const totalPixels = currentWorkingSize.width * currentWorkingSize.height;
 
       // 1. 使用SLIC超像素预处理
       const superpixelData = applySLIC(
         currentPixelData,
-        currentImageSize.width,
-        currentImageSize.height,
+        currentWorkingSize.width,
+        currentWorkingSize.height,
         paletteParams.superpixelCount,
         paletteParams.superpixelCompactness
       );
@@ -319,8 +320,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           backgroundVarianceScale: paletteParams.backgroundVarianceScale,
           superpixelData: superpixelData,
           useDeltaE: paletteParams.useDeltaE,
-          width: currentImageSize.width,
-          height: currentImageSize.height,
+          width: currentWorkingSize.width,
+          height: currentWorkingSize.height,
           edgeSensitivity: paletteParams.edgeSensitivity,
           contrastThreshold: paletteParams.contrastThreshold,
           enableEdgeDetection: true
@@ -450,15 +451,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // --- Step 2: Get Pixel Data ---
         const pixelData = getCanvasPixelData(loadedImgElement, hiddenCanvas);
-        // Get actual dimensions (may be downsampled for large images)
+        // Get actual dimensions (may be downsampled for large images).
+        // These are the ONLY dimensions valid for the pixel buffer below — every
+        // consumer (SLIC, analyzer, scatter, sphere) must use them, never the
+        // original image size, or reads go out of bounds.
         const actualWidth = hiddenCanvas.width;
         const actualHeight = hiddenCanvas.height;
-        const width = currentImageSize.width; // Original dimensions for reference
-        const height = currentImageSize.height;
+        currentWorkingSize = { width: actualWidth, height: actualHeight };
         const totalPixels = actualWidth * actualHeight;
 
         if (pixelData && totalPixels > 0) {
-          console.log(`Successfully retrieved pixel data: ${pixelData.length} bytes for ${width}x${height} image.`);
+          console.log(`Successfully retrieved pixel data: ${pixelData.length} bytes for ${actualWidth}x${actualHeight} working buffer (original ${currentImageSize.width}x${currentImageSize.height}).`);
 
           // Store pixel data globally for potential re-processing (e.g., palette options)
           currentPixelData = pixelData;
@@ -468,8 +471,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           // 1. 使用SLIC超像素预处理
           const superpixelData = applySLIC(
             currentPixelData,
-            currentImageSize.width,
-            currentImageSize.height,
+            currentWorkingSize.width,
+            currentWorkingSize.height,
             paletteParams.superpixelCount,
             paletteParams.superpixelCompactness
           );
@@ -489,18 +492,18 @@ document.addEventListener('DOMContentLoaded', async () => {
               maxHiddenColors: paletteParams.maxHiddenColors,
               minHiddenPercentage: paletteParams.hiddenColorThreshold,
               maxBackgrounds: paletteParams.maxBackgrounds,
-              useSuperpixels: paletteParams.useSuperpixels,
-              backgroundVarianceScale: paletteParams.backgroundVarianceScale,
-              superpixelData: superpixelData,
-              useDeltaE: paletteParams.useDeltaE,
-              width: currentImageSize.width,
-              height: currentImageSize.height,
-              edgeSensitivity: paletteParams.edgeSensitivity,
-              contrastThreshold: paletteParams.contrastThreshold,
-              enableEdgeDetection: true
-            }
-          );
-          console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
+          useSuperpixels: paletteParams.useSuperpixels,
+          backgroundVarianceScale: paletteParams.backgroundVarianceScale,
+          superpixelData: superpixelData,
+          useDeltaE: paletteParams.useDeltaE,
+          width: currentWorkingSize.width,
+          height: currentWorkingSize.height,
+          edgeSensitivity: paletteParams.edgeSensitivity,
+          contrastThreshold: paletteParams.contrastThreshold,
+          enableEdgeDetection: true
+        }
+      );
+      console.log(`Palette analyzed and merged (${analyzedPalette.length} colors).`);
 
           // Store the analyzed palette data for export
           currentAnalyzedPalette = analyzedPalette;
@@ -519,7 +522,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           // Calculate stats once with sampling for both basic and advanced visualizations
           // Use sampleFactor=10 for good balance between accuracy and performance
           const sampleFactor = 10;
-          const colorStats = calculateColorStats(pixelData, width, height, sampleFactor);
+          const colorStats = calculateColorStats(pixelData, actualWidth, actualHeight, sampleFactor);
 
           if (colorStats) {
             // Display stats summary
@@ -543,7 +546,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Draw Lab a*b* Scatter Plot
             // Sample factor 100 means process every 100th pixel
-            drawLabScatterPlotRevised(labScatterCanvas, pixelData, width, height, 100);
+            drawLabScatterPlotRevised(labScatterCanvas, pixelData, actualWidth, actualHeight, 100);
 
 
             // Draw Advanced Visualizations using the same sampled data
@@ -607,7 +610,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
               // Call the 3D setup function and store the returned object
               // Sample factor 200 means process every 200th pixel for 3D points
-              const sphereSceneInfo = setupSphereScene(sphereContainer, pixelData, width, height, 200);
+              const sphereSceneInfo = setupSphereScene(sphereContainer, pixelData, actualWidth, actualHeight, 200);
 
               if (sphereSceneInfo) { // Check if setup was successful (returned non-null)
                 console.log("3D scene setup successful.");
@@ -725,6 +728,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentCamera = null;
     currentImageFilename = 'image';
     currentImageSize = { width: 0, height: 0 };
+    currentWorkingSize = { width: 0, height: 0 };
     currentPixelData = null; // Clear pixel data
   }
 
@@ -852,11 +856,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   savePaletteDataBtn.addEventListener('click', () => {
     console.log("Save Palette Data button clicked.");
     // Check if data and image size are available
-    if (currentAnalyzedPalette && currentImageSize.width > 0 && currentImageSize.height > 0) {
+    if (currentAnalyzedPalette && currentWorkingSize.width > 0 && currentWorkingSize.height > 0) {
+      const totalWorkingPixels = currentWorkingSize.width * currentWorkingSize.height;
       const dataToSave = currentAnalyzedPalette.map(colorInfo => ({
         rgb: colorInfo.rgb,
         hex: rgbToHex([colorInfo.rgb.r, colorInfo.rgb.g, colorInfo.rgb.b]),
-        pixelPercentage: ((colorInfo.count / (currentImageSize.width * currentImageSize.height)) * 100).toFixed(1) + '%',
+        pixelPercentage: ((colorInfo.count / totalWorkingPixels) * 100).toFixed(1) + '%',
         isBackground: colorInfo.isBackground,
         isFeature: colorInfo.isFeature
       }));
