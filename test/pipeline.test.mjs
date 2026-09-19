@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { extractDominantColors } from '../frontend/js/medianCut.js';
 import { applySLIC } from '../frontend/js/slic.js';
 import { analyzePalette } from '../frontend/js/paletteAnalyzer.js';
+import { rgbToLab, labToRgb } from '../frontend/js/colorUtils.js';
 
 // --- helpers ---------------------------------------------------------------
 
@@ -87,6 +88,19 @@ test('MMCQ: rare vivid color (0.5% of pixels) survives quantization', () => {
 test('MMCQ: fully transparent image produces finite colors', () => {
   const colors = extractDominantColors(new Uint8Array(5000 * 4), 6);
   assert.ok(colors.every(c => [c.r, c.g, c.b].every(Number.isFinite)));
+});
+
+// --- colorUtils -------------------------------------------------------------
+
+test('Lab→sRGB conversion round-trips rgbToLab inside the sRGB gamut', () => {
+  for (const [r, g, b] of [[255, 0, 0], [30, 150, 220], [250, 180, 20], [110, 85, 55], [128, 128, 128], [255, 255, 255]]) {
+    const [L, a, bb] = rgbToLab(r, g, b);
+    const [r2, g2, b2] = labToRgb(L, a, bb);
+    assert.ok(Math.abs(r2 - r) <= 1 && Math.abs(g2 - g) <= 1 && Math.abs(b2 - b) <= 1,
+      `rgb(${r},${g},${b}) round-tripped to rgb(${r2},${g2},${b2})`);
+  }
+  // White must stay white (the old approximation produced rgb(255,251,151))
+  assert.deepEqual(labToRgb(100, 0, 0), [255, 255, 255]);
 });
 
 // --- analysis pipeline (pixel path) -----------------------------------------

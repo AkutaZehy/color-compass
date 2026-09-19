@@ -3,7 +3,7 @@
 // Import Three.js core and controls
 import * as THREE from '../lib/three/build/three.module.js';
 import { OrbitControls } from '../lib/three/examples/jsm/controls/OrbitControls.js';
-import { rgbToLab } from './colorUtils.js'; // Need Lab conversion
+import { rgbToLab, labToRgbLinear } from './colorUtils.js'; // Lab conversions
 import { t } from './i18n.js'; // Import i18n module
 
 
@@ -23,34 +23,6 @@ let animationFrameId = null; // To keep track of the animation loop
 // around the axis and lopsides the top view.
 
 const sphereRadius = 100;
-
-// Inverse of rgbToLab (D65, 2° observer): Lab → linear-light sRGB channels
-function labToRgbLinear (L, a, b) {
-  const eps = 0.008856; // (6/29)^3
-  const kap = 903.3;    // (29/3)^3
-
-  const fy = (L + 16) / 116;
-  const fx = fy + a / 500;
-  const fz = fy - b / 200;
-
-  const fx3 = fx * fx * fx;
-  const fz3 = fz * fz * fz;
-  const xr = fx3 > eps ? fx3 : (116 * fx - 16) / kap;
-  const yr = L > kap * eps ? Math.pow(fy, 3) : L / kap;
-  const zr = fz3 > eps ? fz3 : (116 * fz - 16) / kap;
-
-  // Normalized XYZ × D65 reference white → XYZ on the 0-100 scale
-  const X = xr * 95.047;
-  const Y = yr * 100.000;
-  const Z = zr * 108.883;
-
-  // XYZ → linear sRGB (inverse of the forward matrix used by rgbToLab)
-  const rLin = (3.2406 * X - 1.5372 * Y - 0.4986 * Z) / 100;
-  const gLin = (-0.9689 * X + 1.8758 * Y + 0.0415 * Z) / 100;
-  const bLin = (0.0557 * X - 0.2040 * Y + 1.0570 * Z) / 100;
-
-  return [rLin, gLin, bLin];
-}
 
 function isInSrgbGamut (L, a, b) {
   const [r, g, bl] = labToRgbLinear(L, a, b);

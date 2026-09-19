@@ -5,7 +5,7 @@
  * - Color Distance Heatmap (色彩距离热力图)
  */
 
-import { rgbToHsv, rgbToLab } from './colorUtils.js';
+import { rgbToHsv, rgbToLab, labToRgb } from './colorUtils.js';
 import { t } from './i18n.js'; // Import i18n module
 
 /**
@@ -351,11 +351,10 @@ export function drawLabDensityChart(canvas, labValues, title = 'Lab色彩密度�
       const aVal = aMin + (a + 0.5) * (aMax - aMin) / aBins;
       const bVal = bMin + (b + 0.5) * (bMax - bMin) / bBins;
 
-      // Convert Lab to approximate RGB for coloring
-      const l = 50; // Use middle luminance
-      const color = labToRgbApproximation(l, aVal, bVal);
+      // Color each cell by its (a*, b*) position at mid lightness (exact Lab→sRGB)
+      const [r, g_, b_] = labToRgb(50, aVal, bVal);
 
-      ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${0.3 + normalizedCount * 0.7})`;
+      ctx.fillStyle = `rgba(${r}, ${g_}, ${b_}, ${0.3 + normalizedCount * 0.7})`;
       ctx.fillRect(
         margin + a * cellWidth,
         margin + plotHeight - (b + 1) * cellHeight,
@@ -401,24 +400,4 @@ export function drawLabDensityChart(canvas, labValues, title = 'Lab色彩密度�
   ctx.font = 'bold 14px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText(title, width / 2, 20);
-}
-
-/**
- * Approximate RGB from Lab (for visualization only)
- */
-function labToRgbApproximation(l, a, b) {
-  // Simple approximation for visualization
-  const y = (l + 16) / 116;
-  const x = a / 500 + y;
-  const z = y - b / 200;
-
-  const r = x * 1.656492 - y * 0.354851 - z * 0.255038;
-  const g = -x * 0.707196 + y * 1.656393 + z * 0.036152;
-  const bl = x * 0.051713 - y * 0.121364 + z * 0.371043;
-
-  return {
-    r: Math.max(0, Math.min(255, Math.round((r > 0.0031308 ? 1.055 * Math.pow(r, 1 / 2.4) - 0.055 : r * 12.92) * 255))),
-    g: Math.max(0, Math.min(255, Math.round((g > 0.0031308 ? 1.055 * Math.pow(g, 1 / 2.4) - 0.055 : g * 12.92) * 255))),
-    b: Math.max(0, Math.min(255, Math.round((bl > 0.0031308 ? 1.055 * Math.pow(bl, 1 / 2.4) - 0.055 : bl * 12.92) * 255)))
-  };
 }

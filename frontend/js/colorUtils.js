@@ -145,6 +145,59 @@ export function hexToRgb (hex) {
 
 
 /**
+* Inverse of rgbToLab (D65, 2° observer): Lab → linear-light sRGB channels.
+* Values are NOT clamped — channels outside [0, 1] mean the color is outside
+* the sRGB gamut, which callers use for gamut testing.
+* @param   Number  L   Lightness L* [0, 100]
+* @param   Number  a   a* coordinate
+* @param   Number  b   b* coordinate
+* @return  Array       [rLin, gLin, bLin] linear-light sRGB, unclamped
+*/
+export function labToRgbLinear (L, a, b) {
+  const eps = 0.008856; // (6/29)^3
+  const kap = 903.3;    // (29/3)^3
+
+  const fy = (L + 16) / 116;
+  const fx = fy + a / 500;
+  const fz = fy - b / 200;
+
+  const fx3 = fx * fx * fx;
+  const fz3 = fz * fz * fz;
+  const xr = fx3 > eps ? fx3 : (116 * fx - 16) / kap;
+  const yr = L > kap * eps ? Math.pow(fy, 3) : L / kap;
+  const zr = fz3 > eps ? fz3 : (116 * fz - 16) / kap;
+
+  // Normalized XYZ × D65 reference white → XYZ on the 0-100 scale
+  const X = xr * 95.047;
+  const Y = yr * 100.000;
+  const Z = zr * 108.883;
+
+  // XYZ → linear sRGB (inverse of the forward matrix used by rgbToLab)
+  return [
+    (3.2406 * X - 1.5372 * Y - 0.4986 * Z) / 100,
+    (-0.9689 * X + 1.8758 * Y + 0.0415 * Z) / 100,
+    (0.0557 * X - 0.2040 * Y + 1.0570 * Z) / 100
+  ];
+}
+
+/**
+* Converts a CIELAB color to sRGB bytes (0-255), clamping out-of-gamut values.
+* Exact inverse of rgbToLab within the sRGB gamut.
+* @param   Number  L   Lightness L* [0, 100]
+* @param   Number  a   a* coordinate
+* @param   Number  b   b* coordinate
+* @return  Array       [r, g, b] bytes, clamped to [0, 255]
+*/
+export function labToRgb (L, a, b) {
+  const toByte = (v) => {
+    v = Math.max(0, Math.min(1, v));
+    return Math.round(255 * (v > 0.0031308 ? 1.055 * Math.pow(v, 1 / 2.4) - 0.055 : 12.92 * v));
+  };
+  const [rLin, gLin, bLin] = labToRgbLinear(L, a, b);
+  return [toByte(rLin), toByte(gLin), toByte(bLin)];
+}
+
+/**
 * Calculates the Euclidean distance between two colors in the CIELAB color space (Delta E 1976).
 * Based on https://en.wikipedia.org/wiki/Color_difference#Euclidean_distance_in_L*a*b*_or_L*u*v*
 * @param   Array  lab1   First LAB color [L*, a*, b*]
