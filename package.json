@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "start": "npx serve frontend",
-    "test": "node --test test/"
+    "test": "node --test"
   },
   "repository": {
     "type": "git",
