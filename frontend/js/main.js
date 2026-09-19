@@ -597,7 +597,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Draw Lab Density Chart
             if (labDensityCanvas) {
-              drawLabDensityChart(labDensityCanvas, colorStats.values, t('advanced.charts.labDensity.title'));
+              drawLabDensityChart(labDensityCanvas, colorStats.density, t('advanced.charts.labDensity.title'));
             }
 
 

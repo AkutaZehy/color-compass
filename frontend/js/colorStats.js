@@ -26,7 +26,14 @@ export function calculateColorStats (pixelData, width, height, sampleFactor = 1)
   const lValues = [];
   const aValues = [];
   const bValues = [];
-  const labValues = []; // Store full Lab values for density visualization
+
+  // a*/b* density histogram, streamed during the same pass. The old code
+  // stored one [L,a,b] array per sampled pixel (~200k small arrays) just so
+  // the density chart could re-bin them into this same histogram.
+  const densityBins = 40;
+  const aMin = -100, aMax = 100;
+  const bMin = -100, bMax = 100;
+  const densityCounts = Array.from({ length: densityBins }, () => new Uint32Array(densityBins));
 
   // Sample pixels for performance
   // sampleFactor = 1 means process all pixels
@@ -50,7 +57,13 @@ export function calculateColorStats (pixelData, width, height, sampleFactor = 1)
     lValues.push(lab[0]); // L* [0, 100]
     aValues.push(lab[1]); // a* [approx -128, 128]
     bValues.push(lab[2]); // b* [approx -128, 128]
-    labValues.push(lab); // Store full Lab array for density visualization
+
+    // Stream a*/b* into the density histogram
+    if (lab[1] >= aMin && lab[1] <= aMax && lab[2] >= bMin && lab[2] <= bMax) {
+      const aBin = Math.min(densityBins - 1, Math.floor((lab[1] - aMin) / (aMax - aMin) * densityBins));
+      const bBin = Math.min(densityBins - 1, Math.floor((lab[2] - bMin) / (bMax - bMin) * densityBins));
+      densityCounts[aBin][bBin]++;
+    }
   }
 
   // Helper function to calculate average
@@ -102,7 +115,11 @@ export function calculateColorStats (pixelData, width, height, sampleFactor = 1)
       h: hValues, s: sValues, v: vValues,
       l: lValues, a: aValues, b: bValues
     },
-    // Return full Lab values for advanced visualizations
-    values: labValues
+    // a*/b* density histogram for the density visualization
+    density: {
+      bins: densityBins,
+      aMin, aMax, bMin, bMax,
+      counts: densityCounts
+    }
   };
 }

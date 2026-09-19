@@ -300,10 +300,11 @@ export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth,
 /**
  * Draws a 3D-like color distribution using density estimation
  * @param {HTMLCanvasElement} canvas - The canvas element
- * @param {Array} labValues - Array of Lab color values
+ * @param {Object} density - Prebuilt a-b plane histogram from calculateColorStats:
+ *   { bins, aMin, aMax, bMin, bMax, counts[aBin][bBin] }
  * @param {string} title - Chart title
  */
-export function drawLabDensityChart(canvas, labValues, title = 'Lab色彩密度分布') {
+export function drawLabDensityChart(canvas, density, title = 'Lab色彩密度分布') {
   const ctx = canvas.getContext('2d');
   const width = canvas.width;
   const height = canvas.height;
@@ -312,7 +313,7 @@ export function drawLabDensityChart(canvas, labValues, title = 'Lab色彩密度�
   ctx.fillStyle = '#2a2a2a';
   ctx.fillRect(0, 0, width, height);
 
-  if (!labValues || labValues.length === 0) {
+  if (!density || !density.counts) {
     ctx.fillStyle = '#888';
     ctx.textAlign = 'center';
     ctx.font = '14px sans-serif';
@@ -324,26 +325,11 @@ export function drawLabDensityChart(canvas, labValues, title = 'Lab色彩密度�
   const plotWidth = width - margin * 2;
   const plotHeight = height - margin * 2 - 30;
 
-  // Create 2D histogram (a* vs b*)
-  const aBins = 40;
-  const bBins = 40;
-  const aMin = -100, aMax = 100;
-  const bMin = -100, bMax = 100;
-  const histogram = new Array(aBins).fill(null).map(() => new Array(bBins).fill(0));
-
-  labValues.forEach(lab => {
-    const a = lab[1];
-    const b = lab[2];
-
-    if (a < aMin || a > aMax || b < bMin || b > bMax) return;
-
-    const aBin = Math.floor((a - aMin) / (aMax - aMin) * aBins);
-    const bBin = Math.floor((b - bMin) / (bMax - bMin) * bBins);
-
-    if (aBin >= 0 && aBin < aBins && bBin >= 0 && bBin < bBins) {
-      histogram[aBin][bBin]++;
-    }
-  });
+  const aBins = density.bins;
+  const bBins = density.bins;
+  const aMin = density.aMin, aMax = density.aMax;
+  const bMin = density.bMin, bMax = density.bMax;
+  const histogram = density.counts;
 
   // Find max for scaling
   let maxCount = 0;
