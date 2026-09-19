@@ -853,21 +853,25 @@ body.skeuo .sl-map-item p {
   color: #6b5d42;
 }
 
-/* Brass compass heading */
+/* Brass compass heading — machined bezel, fine tick rings, engraved
+   cardinal letters, needle under a glass dome */
 .compass {
   position: relative;
-  width: 84px;
-  height: 84px;
-  margin: 0 auto 8px auto;
+  width: 96px;
+  height: 96px;
+  margin: 26px auto 10px auto;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 38% 32%, rgba(255, 255, 255, 0.55), transparent 45%),
-    conic-gradient(from 40deg, #7a5c13, #d4af37, #8a6508, #e8c96a, #7a5c13);
-  border: 3px solid #5d4712;
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 42%),
+    conic-gradient(from 30deg,
+      #6e5210, #d4af37 12%, #9c7a1e 30%, #eed88a 48%,
+      #8a6508 65%, #d9bd5c 82%, #6e5210);
+  border: 3px solid #4a3a0e;
   box-shadow:
-    0 6px 14px rgba(0, 0, 0, 0.35),
-    inset 0 2px 3px rgba(255, 255, 255, 0.45),
-    inset 0 -3px 5px rgba(0, 0, 0, 0.35);
+    0 2px 3px rgba(0, 0, 0, 0.2),
+    0 10px 22px rgba(0, 0, 0, 0.35),
+    inset 0 2px 3px rgba(255, 255, 255, 0.55),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.4);
   display: none;
 }
 
@@ -875,37 +879,118 @@ body.skeuo .compass {
   display: block;
 }
 
+/* Dial face: ivory with a recessed rim */
 .compass::before {
   content: '';
   position: absolute;
-  inset: 11px;
+  inset: 14px;
   border-radius: 50%;
   background: radial-gradient(circle, #fdfaf1 0 58%, #efe8d2 100%);
-  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(90, 74, 32, 0.4);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.3),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.7);
 }
 
-/* Tick ring on the dial */
-.compass::after {
-  content: '';
+/* Tick rings: 72 fine minor ticks + 12 long major ticks, carved into the
+   face edge (each layer is a conic stripe pattern masked to its ring band) */
+.compass-ticks {
   position: absolute;
-  inset: 11px;
+  inset: 14px;
   border-radius: 50%;
-  background: repeating-conic-gradient(#5b4a20 0deg 1.5deg, transparent 1.5deg 30deg);
-  -webkit-mask: radial-gradient(circle, transparent 0 62%, #000 62% 72%, transparent 72%);
-  mask: radial-gradient(circle, transparent 0 62%, #000 62% 72%, transparent 72%);
+}
+
+.compass-ticks.minor {
+  background: repeating-conic-gradient(from -0.35deg,
+    rgba(90, 74, 32, 0.7) 0deg 0.7deg, transparent 0.7deg 5deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 73%, #000 73% 86%, transparent 86%);
+  mask: radial-gradient(circle, transparent 0 73%, #000 73% 86%, transparent 86%);
+}
+
+.compass-ticks.major {
+  background: repeating-conic-gradient(from -1deg,
+    #5b4a20 0deg 2deg, transparent 2deg 30deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 64%, #000 64% 86%, transparent 86%);
+  mask: radial-gradient(circle, transparent 0 64%, #000 64% 86%, transparent 86%);
+}
+
+/* Cardinal letters, letterpress-engraved; north in the traditional red */
+.compass-dir {
+  position: absolute;
+  font-family: 'Times New Roman', Georgia, serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4a4234;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+  z-index: 1;
+}
+
+.compass-dir.n {
+  top: 24%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #a03a2e;
+}
+
+.compass-dir.s {
+  top: 76%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.compass-dir.e {
+  top: 50%;
+  left: 76%;
+  transform: translate(-50%, -50%);
+}
+
+.compass-dir.w {
+  top: 50%;
+  left: 24%;
+  transform: translate(-50%, -50%);
 }
 
 .compass-needle {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 10px;
-  height: 56px;
+  width: 9px;
+  height: 48px;
   transform: translate(-50%, -50%) rotate(38deg);
   background: linear-gradient(180deg, #c0392b 0 50%, #37474f 50% 100%);
   clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
   z-index: 2;
+}
+
+/* Brass pin holding the needle */
+.compass-cap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f0dd9a, #b8952e 60%, #7a5c13);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.7);
+  z-index: 3;
+}
+
+/* Glass dome: diagonal highlight washing over dial and needle */
+.compass::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: linear-gradient(150deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0.12) 26%,
+    rgba(255, 255, 255, 0) 45%);
+  z-index: 4;
+  pointer-events: none;
 }
 
 /* Switchers: brass pill + key */
