@@ -40,7 +40,9 @@ export function drawPalette (palette, canvasElement, totalPixels) {
   const maxSwatchesPerRow = Math.floor((parentWidth - padding * 2 + swatchGap) / (fixedSwatchWidth + swatchGap));
   const numRows = Math.ceil(palette.length / maxSwatchesPerRow);
 
-  const requiredHeight = padding * 2 + numRows * (swatchHeight + textGap + textHeight + tagGap + tagHeight + swatchGap) - swatchGap;
+  // Per swatch: color block, hex line, percentage line, optional tag line
+  const rowHeight = swatchHeight + textGap + textHeight + tagGap + tagHeight + tagGap + tagHeight + swatchGap;
+  const requiredHeight = padding * 2 + numRows * rowHeight - swatchGap;
   canvasElement.width = parentWidth;
   canvasElement.height = requiredHeight;
 
@@ -53,29 +55,35 @@ export function drawPalette (palette, canvasElement, totalPixels) {
   palette.forEach((color, index) => {
     if (index > 0 && index % maxSwatchesPerRow === 0) {
       currentX = padding;
-      currentY += swatchHeight + textGap + textHeight + tagGap + tagHeight + swatchGap;
+      currentY += rowHeight;
     }
 
-    ctx.fillStyle = rgbToHex([color.rgb.r, color.rgb.g, color.rgb.b]);
+    const hex = rgbToHex([color.rgb.r, color.rgb.g, color.rgb.b]);
+
+    ctx.fillStyle = hex;
     ctx.fillRect(currentX, currentY, fixedSwatchWidth, swatchHeight);
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `${textHeight - 3}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
 
-    const hex = rgbToHex([color.rgb.r, color.rgb.g, color.rgb.b]);
+    // HEX label
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `${textHeight - 3}px sans-serif`;
     ctx.fillText(hex, currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap);
 
+    // Pixel percentage (share of the analyzed image)
+    ctx.fillStyle = '#b0b0c0';
     ctx.font = `${tagHeight - 2}px sans-serif`;
-    ctx.textBaseline = 'top';
+    const pct = `${((color.percentage || 0) * 100).toFixed(1)}%`;
+    ctx.fillText(pct, currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap);
 
+    // Optional tag line (background / hidden)
     if (color.isBackground) {
       ctx.fillStyle = '#00ff00';
-      ctx.fillText(t('palette.tags.background'), currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap);
+      ctx.fillText(t('palette.tags.background'), currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap + tagHeight + tagGap);
     } else if (color.isHidden) {
       ctx.fillStyle = '#ffff00';
-      ctx.fillText(t('palette.tags.featured'), currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap);
+      ctx.fillText(t('palette.tags.featured'), currentX + fixedSwatchWidth / 2, currentY + swatchHeight + textGap + textHeight + tagGap + tagHeight + tagGap);
     }
 
     currentX += fixedSwatchWidth + swatchGap;

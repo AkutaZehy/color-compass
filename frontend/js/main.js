@@ -107,7 +107,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Algorithm options
     useSuperpixels: true,
-    useDeltaE: false
+    useDeltaE: false,
+
+    // Palette display order
+    sortMode: 'percentage'
   };
 
   // --- Get HTML Elements ---
@@ -134,6 +137,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   const maxBackgroundsInput = document.getElementById('maxBackgrounds');
   const backgroundVarianceScaleInput = document.getElementById('backgroundVarianceScale');
   const useDeltaEInput = document.getElementById('useDeltaE');
+  const paletteSortModeSelect = document.getElementById('paletteSortMode');
+
+  // Sort the analyzed palette for display according to the selected mode
+  function sortPalette (palette) {
+    switch (paletteParams.sortMode) {
+      case 'luminance':
+        palette.sort((a, b) => a.lab[0] - b.lab[0]);
+        break;
+      case 'hue':
+        palette.sort((a, b) => {
+          const hueA = (Math.atan2(a.lab[2], a.lab[1]) + 2 * Math.PI) % (2 * Math.PI);
+          const hueB = (Math.atan2(b.lab[2], b.lab[1]) + 2 * Math.PI) % (2 * Math.PI);
+          return hueA - hueB;
+        });
+        break;
+      case 'percentage':
+      default:
+        palette.sort((a, b) => b.percentage - a.percentage);
+        break;
+    }
+    return palette;
+  }
 
   // Parameter value displays
   const targetPaletteSizeValue = document.getElementById('targetPaletteSizeValue');
@@ -188,6 +213,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     maxBackgroundsInput.addEventListener('input', updateParamsFromControls);
     backgroundVarianceScaleInput.addEventListener('input', updateParamsFromControls);
     useDeltaEInput.addEventListener('change', updateParamsFromControls);
+
+    // Re-sort and redraw the existing palette when the display order changes
+    paletteSortModeSelect.addEventListener('change', () => {
+      paletteParams.sortMode = paletteSortModeSelect.value;
+      if (currentAnalyzedPalette && currentAnalyzedPalette.length > 0 &&
+          currentWorkingSize.width > 0 && currentWorkingSize.height > 0) {
+        sortPalette(currentAnalyzedPalette);
+        drawPalette(currentAnalyzedPalette, paletteCanvas, currentWorkingSize.width * currentWorkingSize.height);
+      }
+    });
 
     // Toggle advanced params
     toggleAdvancedBtn.addEventListener('click', () => {
@@ -330,7 +365,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log(`Palette analyzed (${analyzedPalette.length} colors).`);
 
       // Sort and render palette
-      analyzedPalette.sort((a, b) => a.lab[0] - b.lab[0]);
+      sortPalette(analyzedPalette);
       drawPalette(analyzedPalette, paletteCanvas, totalPixels);
 
       // Store the new palette
@@ -508,8 +543,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           // Store the analyzed palette data for export
           currentAnalyzedPalette = analyzedPalette;
 
-          // Sort for display (e.g., by luminance)
-          analyzedPalette.sort((a, b) => a.lab[0] - b.lab[0]);
+          // Sort for display according to the selected order
+          sortPalette(analyzedPalette);
 
           // Draw palette to canvas (This function also handles showing palette buttons)
           drawPalette(analyzedPalette, paletteCanvas, totalPixels);

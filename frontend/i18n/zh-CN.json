@@ -57,7 +57,13 @@
     },
     "colorSpace": "Lch 色彩空间 (3D)",
     "spherePlaceholder": "选择图片以生成 3D 色彩球体。",
-    "sphereExport": "保存 3D 色彩球体图片"
+    "sphereExport": "保存 3D 色彩球体图片",
+    "sort": {
+      "label": "排序方式",
+      "percentage": "占比",
+      "luminance": "亮度",
+      "hue": "色相"
+    }
   },
   "analysis": {
     "title": "色彩倾向分析",

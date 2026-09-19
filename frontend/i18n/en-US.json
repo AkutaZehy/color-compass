@@ -57,7 +57,13 @@
     },
     "colorSpace": "Lch Color Space (3D)",
     "spherePlaceholder": "Select an image to generate 3D color sphere.",
-    "sphereExport": "Save 3D Color Sphere Image"
+    "sphereExport": "Save 3D Color Sphere Image",
+    "sort": {
+      "label": "Sort by",
+      "percentage": "Population",
+      "luminance": "Luminance",
+      "hue": "Hue"
+    }
   },
   "analysis": {
     "title": "Color Analysis",

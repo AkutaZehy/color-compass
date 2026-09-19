@@ -82,6 +82,14 @@
             <div class="palette-controls">
               <button id="reRenderPaletteBtn"><span data-i18n="palette.reRenderButton" data-i18n-attr="textContent"></span></button>
               <button id="resetParamsBtn" style="margin-left: 10px;"><span data-i18n="palette.resetParamsButton" data-i18n-attr="textContent"></span></button>
+              <div class="palette-sort">
+                <label for="paletteSortMode"><span data-i18n="palette.sort.label" data-i18n-attr="textContent"></span></label>
+                <select id="paletteSortMode">
+                  <option value="percentage" data-i18n="palette.sort.percentage" data-i18n-attr="textContent"></option>
+                  <option value="luminance" data-i18n="palette.sort.luminance" data-i18n-attr="textContent"></option>
+                  <option value="hue" data-i18n="palette.sort.hue" data-i18n-attr="textContent"></option>
+                </select>
+              </div>
               <div class="palette-params">
                 <div class="params-basic">
                   <h3><span data-i18n="palette.basicParams" data-i18n-attr="textContent"></span></h3>
