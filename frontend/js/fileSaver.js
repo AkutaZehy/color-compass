@@ -17,10 +17,11 @@ export function saveTextFile (filename, textContent, mimeType = 'text/plain') {
     a.download = filename;
     a.click(); // Programmatically click the link to trigger download
 
-    // Clean up the URL object after a short delay
+    // Clean up the blob URL after the browser has had time to start the
+    // download; revoking too early can abort large downloads
     setTimeout(() => {
       URL.revokeObjectURL(url);
-    }, 100);
+    }, 10000);
 
     console.log(`Saved text file: ${filename}`);
 
