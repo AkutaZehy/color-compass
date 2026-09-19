@@ -76,6 +76,21 @@ export function analyzePalette(
     seeds = seeds.slice(0, paletteSize);
   }
 
+  // Hidden-color seeding: high-contrast / high-edge superpixels far from the
+  // MMCQ seeds become extra centroids, so small-but-important colors can win
+  // a cluster instead of being absorbed by a dominant neighbor color.
+  if (useSuperpixels && superpixelData && superpixelData.features) {
+    const room = Math.max(0, Math.max(paletteSize || 0, seeds.length) - seeds.length);
+    const hiddenSeeds = pickHiddenSeeds(
+      inputData,
+      seeds,
+      Math.min(maxHiddenColors, room),
+      contrastThreshold,
+      edgeSensitivity
+    );
+    seeds = seeds.concat(hiddenSeeds);
+  }
+
   const kmeansOptions = {
     useDeltaE,
     weights,
@@ -267,6 +282,39 @@ function dropEmptyClusters({ centroids, labels, counts }) {
 }
 
 /**
+ * Pick extra "hidden color" seeds from superpixel features: colors with high
+ * local contrast or edge strength that sit far (RGB >= 60) from every seed
+ * chosen so far. These become additional K-means centroids.
+ */
+function pickHiddenSeeds(features, existingSeeds, maxSeeds, contrastThreshold, edgeSensitivity) {
+  if (maxSeeds <= 0) return [];
+
+  const scored = features
+    .map((f, i) => ({
+      f,
+      score: (f.contrast || 0) * 0.6 + (f.edgeStrength || 0) * 0.4
+    }))
+    .filter(c => (c.f.contrast || 0) >= contrastThreshold || (c.f.edgeStrength || 0) >= edgeSensitivity)
+    .sort((a, b) => b.score - a.score);
+
+  const MIN_SEED_DISTANCE = 60;
+  const farFromAll = (color, list) => list.every(s => {
+    const dr = s.r - color.r, dg = s.g - color.g, db = s.b - color.b;
+    return Math.sqrt(dr * dr + dg * dg + db * db) >= MIN_SEED_DISTANCE;
+  });
+
+  const picked = [];
+  for (const c of scored) {
+    if (picked.length >= maxSeeds) break;
+    const color = { r: c.f.r, g: c.f.g, b: c.f.b };
+    if (farFromAll(color, existingSeeds) && farFromAll(color, picked)) {
+      picked.push(color);
+    }
+  }
+  return picked;
+}
+
+/**
  * K-means clustering with optional ΔE perceptual distance
  */function kmeansClustering(pixelData, initialCentroids, options = {}) {
   const {
@@ -294,12 +342,12 @@ function dropEmptyClusters({ centroids, labels, counts }) {
   for (let iter = 0; iter < maxIterations; iter++) {
     let changed = false;
     const newCounts = new Array(centroids.length).fill(0);
-    const newSums = centroids.map(() => ({ r: 0, g: 0, b: 0 }));
+    const newSums = centroids.map(() => ({ r: 0, g: 0, b: 0, edge: 0, contrast: 0 }));
 
     // Assignment step: assign each pixel to nearest centroid
     for (let i = 0; i < pixelData.length; i++) {
       const pixel = pixelData[i];
-      
+
       let minDist = Infinity;
       let bestCluster = -1;
 
@@ -328,10 +376,9 @@ function dropEmptyClusters({ centroids, labels, counts }) {
 
       if (bestCluster < 0) continue;
 
-      const labelIndex = weights ? i : i;
-      if (labels[labelIndex] !== bestCluster) {
+      if (labels[i] !== bestCluster) {
         changed = true;
-        labels[labelIndex] = bestCluster;
+        labels[i] = bestCluster;
       }
 
       const weight = weights ? weights[i] : 1;
@@ -339,15 +386,21 @@ function dropEmptyClusters({ centroids, labels, counts }) {
       newSums[bestCluster].r += pixel.r * weight;
       newSums[bestCluster].g += pixel.g * weight;
       newSums[bestCluster].b += pixel.b * weight;
+      // Aggregate superpixel edge/contrast so cluster tagging sees real values
+      newSums[bestCluster].edge += (pixel.edgeStrength || 0) * weight;
+      newSums[bestCluster].contrast += (pixel.contrast || 0) * weight;
     }
 
-    // Update centroids
+    // Update centroids (carrying weighted mean edge strength and contrast)
     centroids = newSums.map((sum, idx) => {
-      const fallback = centroids[idx] || { r: 0, g: 0, b: 0 };
+      const fallback = centroids[idx] || { r: 0, g: 0, b: 0, edgeStrength: 0, contrast: 0 };
+      const hasMembers = newCounts[idx] > 0;
       return {
-        r: newCounts[idx] > 0 ? Math.round(sum.r / newCounts[idx]) : fallback.r,
-        g: newCounts[idx] > 0 ? Math.round(sum.g / newCounts[idx]) : fallback.g,
-        b: newCounts[idx] > 0 ? Math.round(sum.b / newCounts[idx]) : fallback.b
+        r: hasMembers ? Math.round(sum.r / newCounts[idx]) : fallback.r,
+        g: hasMembers ? Math.round(sum.g / newCounts[idx]) : fallback.g,
+        b: hasMembers ? Math.round(sum.b / newCounts[idx]) : fallback.b,
+        edgeStrength: hasMembers ? sum.edge / newCounts[idx] : (fallback.edgeStrength || 0),
+        contrast: hasMembers ? sum.contrast / newCounts[idx] : (fallback.contrast || 0)
       };
     });
 
@@ -383,63 +436,78 @@ function analyzeClustersForHiddenColors(clusteringResult, options) {
   } = options;
 
   const { centroids, counts } = clusteringResult;
-  
+
   // Calculate cluster statistics
   const clusterStats = centroids.map((centroid, idx) => {
     const count = counts[idx];
     const percentage = count / totalPixels;
-    
+
     // Calculate color distribution metrics
     const lab = rgbToLab(centroid.r, centroid.g, centroid.b);
-    
-    // Estimate hue uniqueness (how different from average hue)
-    const avgHue = calculateAverageHue(clusteringResult);
-    const hueDiff = Math.abs(hueDifference(lab[0], avgHue));
-    
+    // Hue angle from a*/b* — NOT L*, which is lightness
+    const hue = Math.atan2(lab[2], lab[1]);
+
     return {
       idx,
       centroid,
       count,
       percentage,
       lab,
-      // Hidden color score components
+      hue,
+      // Hidden color score components (aggregated by K-means; 0 without superpixels)
       sizeScore: percentage, // Raw size score
       edgeScore: centroid.edgeStrength || 0, // Edge strength if available
       contrastScore: centroid.contrast || 0, // Local contrast if available
-      hueUniqueness: hueDiff
+      hueUniqueness: 0 // Filled in below once the circular mean is known
     };
   });
 
+  // Circular mean hue across clusters (weighted by member counts).
+  // Averaging hue angles linearly is wrong: red (-170°) and magenta (+170°)
+  // would average to cyan instead of ~180°.
+  let sinSum = 0, cosSum = 0, weightSum = 0;
+  for (const stat of clusterStats) {
+    sinSum += Math.sin(stat.hue) * stat.count;
+    cosSum += Math.cos(stat.hue) * stat.count;
+    weightSum += stat.count;
+  }
+  const avgHue = weightSum > 0 ? Math.atan2(sinSum, cosSum) : 0;
+
+  for (const stat of clusterStats) {
+    // Normalized circular distance from the mean hue: 0 = same hue, 1 = opposite
+    stat.hueUniqueness = circularHueDistance(stat.hue, avgHue) / Math.PI;
+  }
+
   // Calculate threshold dynamically based on distribution
   const avgPercentage = clusterStats.reduce((sum, c) => sum + c.percentage, 0) / clusterStats.length;
-  
+
   // Hidden color candidates: small but significant
   const hiddenCandidates = [];
-  
+
   for (const stat of clusterStats) {
     // Criteria for hidden color:
     // 1. Small cluster (below average percentage)
     // 2. AND (
     //    a. High edge strength (object boundaries), OR
     //    b. High local contrast (stands out), OR
-    //    c. High hue uniqueness (unusual color), OR
+    //    c. Hue > 54 degrees away from the weighted mean hue, OR
     //    d. Small but not tiny (above minimum threshold)
     // )
-    
+
     const isSmall = stat.percentage < avgPercentage;
     const isAboveMinThreshold = stat.percentage >= minHiddenPercentage;
     const hasEdge = enableEdgeDetection && stat.edgeScore > edgeSensitivity * 0.5;
     const hasContrast = stat.contrastScore > contrastThreshold;
     const isHueUnique = stat.hueUniqueness > 0.3;
-    
+
     if (isSmall && isAboveMinThreshold && (hasEdge || hasContrast || isHueUnique)) {
       // Calculate hidden score (higher = more likely to be important hidden color)
-      const hiddenScore = 
+      const hiddenScore =
         (hasEdge ? stat.edgeScore * edgeSensitivity : 0) +
         (hasContrast ? stat.contrastScore * 0.5 : 0) +
         (isHueUnique ? stat.hueUniqueness * 0.3 : 0) +
         (stat.percentage / avgPercentage * 0.2);
-      
+
       hiddenCandidates.push({
         idx: stat.idx,
         score: hiddenScore,
@@ -455,6 +523,14 @@ function analyzeClustersForHiddenColors(clusteringResult, options) {
     .map(c => c.idx);
 
   return { hiddenIndices, hiddenCandidates };
+}
+
+/**
+ * Circular distance between two hue angles in radians (0..PI)
+ */
+function circularHueDistance(h1, h2) {
+  const diff = Math.abs(h1 - h2) % (2 * Math.PI);
+  return diff > Math.PI ? 2 * Math.PI - diff : diff;
 }
 
 /**
@@ -562,7 +638,7 @@ function getPixelRGB(pixelData, x, y, width) {
 }
 
 /**
- * Calculate color distance in RGB space
+ * Calculate RGB color distance
  */
 function colorDistanceRGB(r1, g1, b1, r2, g2, b2) {
   return Math.sqrt(
@@ -570,34 +646,6 @@ function colorDistanceRGB(r1, g1, b1, r2, g2, b2) {
     Math.pow(g1 - g2, 2) +
     Math.pow(b1 - b2, 2)
   );
-}
-
-/**
- * Calculate average hue from clustering result (simplified)
- */
-function calculateAverageHue(clusteringResult) {
-  const { centroids, counts } = clusteringResult;
-  let totalWeight = 0;
-  let weightedHue = 0;
-  
-  for (let i = 0; i < centroids.length; i++) {
-    const lab = rgbToLab(centroids[i].r, centroids[i].g, centroids[i].b);
-    // Approximate hue from a* and b*
-    const hue = Math.atan2(lab[2], lab[1]); // b*, a*
-    const weight = counts[i];
-    weightedHue += hue * weight;
-    totalWeight += weight;
-  }
-  
-  return totalWeight > 0 ? weightedHue / totalWeight : 0;
-}
-
-/**
- * Calculate hue difference (circular)
- */
-function hueDifference(h1, h2) {
-  const diff = Math.abs(h1 - h2);
-  return Math.min(diff, 2 * Math.PI - diff);
 }
 
 /**
