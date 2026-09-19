@@ -69,14 +69,30 @@ export function analyzePalette(
   }
 
   // =========================================================================
-  // STEP 2: Run K-means clustering with perceptual distance option
+  // STEP 2: Seed K-means from MMCQ, then expand to the target palette size
   // =========================================================================
-  const clusteringResult = kmeansClustering(inputData, dominantColors, {
+  let seeds = dedupeColors(dominantColors);
+  if (paletteSize > 0 && seeds.length > paletteSize) {
+    seeds = seeds.slice(0, paletteSize);
+  }
+
+  const kmeansOptions = {
     useDeltaE,
     weights,
     maxIterations: 20,
     convergenceThreshold: 1.0
-  });
+  };
+
+  let clusteringResult = kmeansClustering(inputData, seeds, kmeansOptions);
+
+  clusteringResult = expandClustersToTarget(
+    inputData,
+    clusteringResult,
+    paletteSize,
+    kmeansOptions
+  );
+
+  clusteringResult = dropEmptyClusters(clusteringResult);
 
   // =========================================================================
   // STEP 3: Analyze clusters for hidden colors using edge-aware detection
@@ -126,9 +142,133 @@ export function analyzePalette(
 }
 
 /**
- * K-means clustering with optional ΔE perceptual distance
+ * Remove duplicate colors (MMCQ can converge to the same average for two cubes)
  */
-function kmeansClustering(pixelData, initialCentroids, options = {}) {
+function dedupeColors(colors) {
+  const seen = new Set();
+  const out = [];
+  for (const c of colors) {
+    const key = `${c.r},${c.g},${c.b}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push({ r: c.r, g: c.g, b: c.b });
+    }
+  }
+  return out;
+}
+
+/**
+ * Expand a clustering result up to targetSize centroids by forking the most
+ * dispersed clusters and re-running K-means. Makes the targetPaletteSize
+ * parameter meaningful: MMCQ only seeds the initial centroids, and clusters
+ * with high per-channel spread get split to reach the requested palette size.
+ * Runs in rounds (a cluster forks at most once per round) so small seed sets
+ * can still reach large targets.
+ */
+function expandClustersToTarget(data, result, targetSize, kmeansOptions) {
+  if (!targetSize) return result;
+  let current = result;
+
+  for (let round = 0; current.centroids.length < targetSize && round < 3; round++) {
+    const need = targetSize - current.centroids.length;
+    const stats = measureClusterSpread(data, current);
+    const ranked = stats
+      .map((s, idx) => ({ idx, spread: s.magnitude }))
+      .sort((a, b) => b.spread - a.spread);
+
+    const centroids = current.centroids.slice();
+    let splits = 0;
+    for (const { idx, spread } of ranked) {
+      if (splits >= need || spread <= 0) break;
+
+      const c = centroids[idx];
+      const s = stats[idx];
+      const axes = ['r', 'g', 'b'];
+      const axis = axes[s.dominantAxis];
+      const offset = Math.max(10, s.std[s.dominantAxis] * 0.8);
+
+      const child = { r: c.r, g: c.g, b: c.b };
+      const sibling = { r: c.r, g: c.g, b: c.b };
+      child[axis] = Math.min(255, Math.round(child[axis] + offset));
+      sibling[axis] = Math.max(0, Math.round(sibling[axis] - offset));
+
+      centroids[idx] = child;
+      centroids.push(sibling);
+      splits++;
+    }
+
+    if (splits === 0) break;
+    current = kmeansClustering(data, centroids, kmeansOptions);
+  }
+
+  return current;
+}
+
+/**
+ * One pass over the data measuring per-cluster dispersion:
+ * weighted per-channel std of members plus the dominant axis.
+ */
+function measureClusterSpread(data, { labels, centroids }) {
+  const k = centroids.length;
+  const count = new Float64Array(k);
+  const sum = Array.from({ length: k }, () => ({ r: 0, g: 0, b: 0 }));
+  const sumSq = Array.from({ length: k }, () => ({ r: 0, g: 0, b: 0 }));
+
+  for (let i = 0; i < data.length; i++) {
+    const l = labels[i];
+    if (l < 0 || l >= k) continue;
+    const p = data[i];
+    count[l]++;
+    sum[l].r += p.r;
+    sum[l].g += p.g;
+    sum[l].b += p.b;
+    sumSq[l].r += p.r * p.r;
+    sumSq[l].g += p.g * p.g;
+    sumSq[l].b += p.b * p.b;
+  }
+
+  const axes = ['r', 'g', 'b'];
+  return centroids.map((_, i) => {
+    if (count[i] <= 0) {
+      return { std: [0, 0, 0], magnitude: 0, dominantAxis: 0 };
+    }
+    const std = [0, 1, 2].map(ch => {
+      const mean = sum[i][axes[ch]] / count[i];
+      const variance = Math.max(0, sumSq[i][axes[ch]] / count[i] - mean * mean);
+      return Math.sqrt(variance);
+    });
+    let dominantAxis = 0;
+    for (let ch = 1; ch < 3; ch++) {
+      if (std[ch] > std[dominantAxis]) dominantAxis = ch;
+    }
+    return { std, magnitude: std[dominantAxis], dominantAxis };
+  });
+}
+
+/**
+ * Drop clusters that lost every member during K-means (merged into others),
+ * remapping labels so downstream indices stay consistent.
+ */
+function dropEmptyClusters({ centroids, labels, counts }) {
+  const keepIdx = [];
+  centroids.forEach((_, i) => {
+    if (counts[i] > 0) keepIdx.push(i);
+  });
+  if (keepIdx.length === centroids.length) {
+    return { centroids, labels, counts };
+  }
+
+  const remap = new Map(keepIdx.map((old, neo) => [old, neo]));
+  return {
+    centroids: keepIdx.map(i => centroids[i]),
+    counts: keepIdx.map(i => counts[i]),
+    labels: labels.map(l => (l >= 0 && remap.has(l)) ? remap.get(l) : -1)
+  };
+}
+
+/**
+ * K-means clustering with optional ΔE perceptual distance
+ */function kmeansClustering(pixelData, initialCentroids, options = {}) {
   const {
     useDeltaE = false,
     weights = null,
