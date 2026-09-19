@@ -143,6 +143,13 @@ export function drawHuePolarChart(canvas, hValues, title = '色相分布') {
  */
 export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth, imageHeight, title = '色彩距离热力图') {
   const ctx = canvas.getContext('2d');
+
+  // Size the canvas to the display resolution (the CSS column is ~480px);
+  // the old full-resolution canvas drew 2M pixels to show 50x50 blocks.
+  const DISPLAY_WIDTH = 480;
+  canvas.width = DISPLAY_WIDTH;
+  canvas.height = Math.max(1, Math.round(DISPLAY_WIDTH * imageHeight / imageWidth));
+
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
 
@@ -189,7 +196,10 @@ export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth,
   const sampleCellWidth = imageWidth / gridSize;
   const sampleCellHeight = imageHeight / gridSize;
 
-  // Calculate average distance from each cell to nearest palette color
+  // Calculate average distance from each cell to nearest palette color.
+  // Each cell samples on a stride (~64 samples max) instead of touching every
+  // pixel — 2M rgbToLab calls dropped to ~160k with identical visuals.
+  const MAX_SAMPLES_PER_AXIS = 8;
   const distances = [];
 
   for (let gy = 0; gy < gridSize; gy++) {
@@ -199,11 +209,15 @@ export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth,
       const startY = Math.floor(gy * sampleCellHeight);
       const endY = Math.floor((gy + 1) * sampleCellHeight);
 
+      const cellW = Math.max(1, endX - startX);
+      const cellH = Math.max(1, endY - startY);
+      const stride = Math.max(1, Math.floor(Math.sqrt((cellW * cellH) / (MAX_SAMPLES_PER_AXIS * MAX_SAMPLES_PER_AXIS))));
+
       let totalDist = 0;
       let count = 0;
 
-      for (let y = startY; y < endY; y++) {
-        for (let x = startX; x < endX; x++) {
+      for (let y = startY; y < endY; y += stride) {
+        for (let x = startX; x < endX; x += stride) {
           const idx = (y * imageWidth + x) * 4;
           if (idx + 3 >= pixelData.length) continue;
 
@@ -213,17 +227,17 @@ export function drawColorDistanceHeatmap(canvas, palette, pixelData, imageWidth,
 
           const pixelLab = rgbToLab(r, g, b);
 
-          let minDist = Infinity;
+          // Minimum SQUARED ΔE (sqrt is monotonic, applied once after the min)
+          let minDistSq = Infinity;
           for (const color of palette) {
-            const dist = Math.sqrt(
-              Math.pow(pixelLab[0] - color.lab[0], 2) +
-              Math.pow(pixelLab[1] - color.lab[1], 2) +
-              Math.pow(pixelLab[2] - color.lab[2], 2)
-            );
-            minDist = Math.min(minDist, dist);
+            const dL = pixelLab[0] - color.lab[0];
+            const dA = pixelLab[1] - color.lab[1];
+            const dB = pixelLab[2] - color.lab[2];
+            const distSq = dL * dL + dA * dA + dB * dB;
+            if (distSq < minDistSq) minDistSq = distSq;
           }
 
-          totalDist += minDist;
+          totalDist += Math.sqrt(minDistSq);
           count++;
         }
       }
