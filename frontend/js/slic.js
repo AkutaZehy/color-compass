@@ -136,9 +136,13 @@ function upscaleLabels(labels, srcWidth, srcHeight, dstWidth, dstHeight) {
 function initializeClusterCenters(rgbData, width, height, superpixelCount) {
   const clusterCenters = [];
   const step = Math.sqrt((width * height) / superpixelCount);
+  // Integer grid step: float coordinates here would flow into pixel indexing
+  // (rgbData[floatIndex] === undefined) and leave centers colorless, which
+  // turns every later distance into NaN and kills the whole segmentation.
+  const stepInt = Math.max(1, Math.floor(step));
 
-  for (let y = Math.floor(step / 2); y < height; y += step) {
-    for (let x = Math.floor(step / 2); x < width; x += step) {
+  for (let y = Math.floor(step / 2); y < height; y += stepInt) {
+    for (let x = Math.floor(step / 2); x < width; x += stepInt) {
       // Move center to lowest gradient position in 3x3 neighborhood
       const adjusted = findLowestGradientNeighbor(rgbData, width, height, x, y);
       clusterCenters.push({
