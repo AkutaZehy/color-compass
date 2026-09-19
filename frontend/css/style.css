@@ -795,3 +795,322 @@ footer a:hover {
 .loading {
   animation: pulse 1.5s ease-in-out infinite;
 }
+
+/* ==========================================================================
+   Skeuomorphic theme ("designer's workbench", light) — opt-in via body.skeuo.
+   Pure CSS materials: paper grain via an inline SVG noise filter, layered
+   shadows for depth, beveled pressable controls. No image assets.
+   ========================================================================== */
+
+body.skeuo {
+  background-color: #a8967c;
+  background-image:
+    radial-gradient(ellipse at 50% -10%, rgba(255, 246, 224, 0.5), transparent 55%),
+    radial-gradient(ellipse at 90% 110%, rgba(62, 48, 30, 0.35), transparent 60%),
+    linear-gradient(180deg, #b3a188 0%, #a08c72 100%);
+  background-attachment: fixed;
+  color: #3d372b;
+}
+
+/* Paper grain overlay shared by every sheet surface */
+body.skeuo .palette-section,
+body.skeuo .color-sphere-section,
+body.skeuo .color-analysis-section,
+body.skeuo .advanced-viz-section,
+body.skeuo .sl-map-section,
+body.skeuo .advanced-content,
+body.skeuo .stats-summary,
+body.skeuo .chart-container,
+body.skeuo .advanced-charts-grid .chart-container {
+  background-color: #f7f2e4;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+  border: 1px solid rgba(120, 102, 74, 0.35);
+  border-radius: 4px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 2px 4px rgba(58, 45, 28, 0.18),
+    0 10px 22px rgba(58, 45, 28, 0.22);
+}
+
+/* Typography: engraved ink */
+body.skeuo h1 {
+  color: #35291a;
+  text-shadow: 0 1px 0 rgba(255, 248, 230, 0.8), 0 -1px 1px rgba(58, 45, 28, 0.35);
+}
+
+body.skeuo h2 {
+  color: #35291a;
+  border-bottom: 2px solid #8a7a5c;
+  text-shadow: 0 1px 0 rgba(255, 248, 230, 0.6);
+}
+
+body.skeuo h3 {
+  color: #6b5d42;
+}
+
+body.skeuo .chart-container p,
+body.skeuo .sl-map-item p {
+  color: #6b5d42;
+}
+
+/* Brass compass heading */
+.compass {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 8px auto;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 32%, rgba(255, 255, 255, 0.55), transparent 45%),
+    conic-gradient(from 40deg, #7a5c13, #d4af37, #8a6508, #e8c96a, #7a5c13);
+  border: 3px solid #5d4712;
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.35),
+    inset 0 2px 3px rgba(255, 255, 255, 0.45),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.35);
+  display: none;
+}
+
+body.skeuo .compass {
+  display: block;
+}
+
+.compass::before {
+  content: '';
+  position: absolute;
+  inset: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fdfaf1 0 58%, #efe8d2 100%);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Tick ring on the dial */
+.compass::after {
+  content: '';
+  position: absolute;
+  inset: 11px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(#5b4a20 0deg 1.5deg, transparent 1.5deg 30deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 62%, #000 62% 72%, transparent 72%);
+  mask: radial-gradient(circle, transparent 0 62%, #000 62% 72%, transparent 72%);
+}
+
+.compass-needle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 56px;
+  transform: translate(-50%, -50%) rotate(38deg);
+  background: linear-gradient(180deg, #c0392b 0 50%, #37474f 50% 100%);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+  z-index: 2;
+}
+
+/* Switchers: brass pill + key */
+body.skeuo .language-switcher,
+body.skeuo .theme-switcher {
+  background: linear-gradient(180deg, #e9dfc8, #cfc2a4);
+  border: 1px solid #8a7a5c;
+  border-radius: 20px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  backdrop-filter: none;
+}
+
+.theme-switcher {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  display: flex;
+}
+
+body:not(.skeuo) .theme-btn {
+  background: transparent;
+  border: 1px solid #4a4a6a;
+  color: #b0b0c0;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+body.skeuo .theme-btn,
+body.skeuo .lang-btn {
+  background: transparent;
+  border: 1px solid #8a7a5c;
+  color: #5b4a20;
+  border-radius: 14px;
+}
+
+body.skeuo .lang-btn:hover,
+body.skeuo .theme-btn:hover {
+  background: rgba(90, 74, 32, 0.12);
+  color: #35291a;
+  border-color: #5b4a20;
+}
+
+body.skeuo .lang-btn.active {
+  background: linear-gradient(180deg, #f0e2b6, #cfa64a);
+  color: #3d2f0d;
+  border-color: #8a6508;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Buttons: pressable keys */
+body.skeuo button,
+body.skeuo .file-input-label {
+  background: linear-gradient(180deg, #fbf7ee 0%, #ded5bf 100%);
+  border: 1px solid #a3937a;
+  border-radius: 6px;
+  color: #4a4234;
+  font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 3px 0 #a3937a,
+    0 5px 8px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+body.skeuo button:hover,
+body.skeuo .file-input-label:hover {
+  background: linear-gradient(180deg, #fffdf6 0%, #e8dfc9 100%);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 4px 0 #a3937a,
+    0 7px 10px rgba(0, 0, 0, 0.28);
+}
+
+body.skeuo button:active,
+body.skeuo .file-input-label:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 0 #a3937a,
+    0 2px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* The select follows the pressed-key material */
+body.skeuo .palette-sort select {
+  background: linear-gradient(180deg, #fbf7ee, #ded5bf);
+  border: 1px solid #a3937a;
+  color: #4a4234;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 3px rgba(0, 0, 0, 0.2);
+}
+
+body.skeuo .palette-sort label {
+  color: #5b4a20;
+}
+
+/* Upload area: scanner bed with glass */
+body.skeuo .upload-area {
+  border: 2px solid #8a7a5c;
+  background:
+    linear-gradient(125deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.05) 30%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, #3d3a33 0%, #57534a 100%);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 2px 10px rgba(0, 0, 0, 0.6),
+    0 2px 4px rgba(58, 45, 28, 0.2),
+    0 8px 18px rgba(58, 45, 28, 0.25);
+}
+
+body.skeuo .upload-area:hover,
+body.skeuo .upload-area.dragover {
+  border-color: #cfa64a;
+  box-shadow:
+    inset 0 2px 10px rgba(0, 0, 0, 0.6),
+    0 0 0 2px rgba(207, 166, 74, 0.35),
+    0 8px 18px rgba(58, 45, 28, 0.3);
+}
+
+body.skeuo .upload-instructions p {
+  color: #d8d2c2;
+}
+
+body.skeuo .paste-hint {
+  color: #a89f8d;
+}
+
+/* Sliders: grooved track + turned-metal knob */
+body.skeuo .param-group input[type="range"] {
+  background: #c9c0ab;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+  border-radius: 4px;
+}
+
+body.skeuo .param-group input[type="range"]::-webkit-slider-thumb {
+  background: radial-gradient(circle at 35% 30%, #ffffff, #b0a68d 70%, #8a7a5c);
+  border: 1px solid #6e6047;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+
+body.skeuo .param-group label {
+  color: #5b4a20;
+}
+
+body.skeuo .param-group .param-value {
+  color: #7a5c13;
+}
+
+/* Panels and charts: mounted prints */
+body.skeuo .stats-summary {
+  border-left: 4px solid #cfa64a;
+  background-color: #efe8d4;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.12);
+}
+
+body.skeuo .stats-summary p {
+  color: #554a35;
+}
+
+body.skeuo .chart-container,
+body.skeuo .advanced-charts-grid .chart-container {
+  background-color: #efe8d4;
+}
+
+body.skeuo .chart-container canvas,
+body.skeuo .advanced-charts-grid .chart-container canvas,
+body.skeuo .sl-map-item canvas {
+  border: 8px solid #fffef8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  border-radius: 2px;
+}
+
+body.skeuo #sphereContainer {
+  background: #efe8d4;
+  border: 8px solid #fffef8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+body.skeuo .advanced-content {
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.12);
+}
+
+/* Tooltip: sticky note */
+body.skeuo .tooltiptext {
+  background-color: #fdf8e3;
+  color: #4a4234;
+  border: 1px solid #c9b98a;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+body.skeuo .tooltip {
+  background: #8a7a5c;
+}
+
+/* Footer */
+body.skeuo footer {
+  color: #5b4a20;
+  border-top: 1px solid #8a7a5c;
+}
+
+body.skeuo footer a {
+  color: #7a5c13;
+}
+
+body.skeuo footer a:hover {
+  color: #3d2f0d;
+}

@@ -154,5 +154,8 @@
   "version": {
     "label": "Git 版本：",
     "fetchFailed": "获取版本信息失败："
+  },
+  "theme": {
+    "toggle": "拟物界面"
   }
 }

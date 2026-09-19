@@ -25,11 +25,19 @@
     <script type="module" src="js/main.js"></script>
   </head>
   <body>
+    <div class="theme-switcher">
+      <button id="themeToggleBtn" class="theme-btn">
+        <span data-i18n="theme.toggle" data-i18n-attr="textContent"></span>
+      </button>
+    </div>
     <div class="language-switcher">
       <button id="langZH" class="lang-btn" data-lang="zh-CN">中文</button>
       <button id="langEN" class="lang-btn active" data-lang="en-US">EN</button>
     </div>
     <div class="content-wrapper">
+      <div class="compass" aria-hidden="true">
+        <div class="compass-needle"></div>
+      </div>
       <h1>Color Compass</h1>
 
       <div class="input-section">

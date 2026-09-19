@@ -35,6 +35,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize i18n module
   await initI18n();
 
+  // Theme switcher (classic dark / skeuomorphic workbench)
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  if (localStorage.getItem('color-compass-theme') === 'skeuo') {
+    document.body.classList.add('skeuo');
+  }
+  themeToggleBtn.addEventListener('click', () => {
+    const skeuo = document.body.classList.toggle('skeuo');
+    localStorage.setItem('color-compass-theme', skeuo ? 'skeuo' : 'classic');
+  });
+
   // Language switcher functionality
   const langZH = document.getElementById('langZH');
   const langEN = document.getElementById('langEN');

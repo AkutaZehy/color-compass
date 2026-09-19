@@ -154,5 +154,8 @@
   "version": {
     "label": "Git Version:",
     "fetchFailed": "Failed to fetch version information:"
+  },
+  "theme": {
+    "toggle": "Skeuomorphic UI"
   }
 }
