@@ -802,14 +802,48 @@ footer a:hover {
    shadows for depth, beveled pressable controls. No image assets.
    ========================================================================== */
 
+/* The workbench surface stays a neutral warm gray: users judge image and
+   palette colors against it, and a tinted (tan/cream) field would skew that
+   judgment. Paper and brass are reserved for chrome — header rail, buttons,
+   footer — which never sits next to a color being compared. */
 body.skeuo {
-  background-color: #a8967c;
+  background-color: #8d8b87;
   background-image:
-    radial-gradient(ellipse at 50% -10%, rgba(255, 246, 224, 0.5), transparent 55%),
-    radial-gradient(ellipse at 90% 110%, rgba(62, 48, 30, 0.35), transparent 60%),
-    linear-gradient(180deg, #b3a188 0%, #a08c72 100%);
+    radial-gradient(ellipse at 50% -10%, rgba(255, 255, 255, 0.16), transparent 55%),
+    radial-gradient(ellipse at 90% 110%, rgba(0, 0, 0, 0.3), transparent 60%),
+    linear-gradient(180deg, #97948f 0%, #85827d 100%);
   background-attachment: fixed;
   color: #3d372b;
+}
+
+/* Sticky header rail: content scrolls behind it instead of sliding between
+   the two fixed switchers. */
+body.skeuo::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  z-index: 900;
+  background-color: #efe8d4;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+  border-bottom: 1px solid #8a7a5c;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+body.skeuo .content-wrapper {
+  padding-top: 72px;
+}
+
+body.skeuo .compass {
+  margin-top: 12px;
+}
+
+/* Switchers ride centered on the rail */
+body.skeuo .language-switcher,
+body.skeuo .theme-switcher {
+  top: 13px;
 }
 
 /* Paper grain overlay shared by every sheet surface */
@@ -822,9 +856,9 @@ body.skeuo .advanced-content,
 body.skeuo .stats-summary,
 body.skeuo .chart-container,
 body.skeuo .advanced-charts-grid .chart-container {
-  background-color: #f7f2e4;
+  background-color: #edecea;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
-  border: 1px solid rgba(120, 102, 74, 0.35);
+  border: 1px solid rgba(78, 78, 76, 0.45);
   border-radius: 4px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.8),
@@ -832,10 +866,13 @@ body.skeuo .advanced-charts-grid .chart-container {
     0 10px 22px rgba(58, 45, 28, 0.22);
 }
 
-/* Typography: engraved ink */
+/* Typography: engraved ink (dark enough for AA on the neutral rail/surface) */
 body.skeuo h1 {
-  color: #35291a;
-  text-shadow: 0 1px 0 rgba(255, 248, 230, 0.8), 0 -1px 1px rgba(58, 45, 28, 0.35);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  letter-spacing: 3px;
+  color: #241b10;
+  text-shadow: 0 1px 0 rgba(255, 248, 230, 0.55), 0 -1px 1px rgba(58, 45, 28, 0.35);
 }
 
 body.skeuo h2 {
@@ -1097,7 +1134,7 @@ body.skeuo .upload-area {
     linear-gradient(180deg, #3d3a33 0%, #57534a 100%);
   border-radius: 6px;
   box-shadow:
-    inset 0 2px 10px rgba(0, 0, 0, 0.6),
+    inset 0 2px 10px rgba(0, 0, 0, 0.38),
     0 2px 4px rgba(58, 45, 28, 0.2),
     0 8px 18px rgba(58, 45, 28, 0.25);
 }
@@ -1106,7 +1143,7 @@ body.skeuo .upload-area:hover,
 body.skeuo .upload-area.dragover {
   border-color: #cfa64a;
   box-shadow:
-    inset 0 2px 10px rgba(0, 0, 0, 0.6),
+    inset 0 2px 10px rgba(0, 0, 0, 0.38),
     0 0 0 2px rgba(207, 166, 74, 0.35),
     0 8px 18px rgba(58, 45, 28, 0.3);
 }
@@ -1115,8 +1152,16 @@ body.skeuo .upload-instructions p {
   color: #d8d2c2;
 }
 
+/* Fill more of the first screen so the drop zone reads as the main stage */
+body.skeuo .upload-area {
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 body.skeuo .paste-hint {
-  color: #a89f8d;
+  color: #cfc7b4;
 }
 
 /* Sliders: grooved track + turned-metal knob */
@@ -1140,10 +1185,11 @@ body.skeuo .param-group .param-value {
   color: #7a5c13;
 }
 
-/* Panels and charts: mounted prints */
+/* Panels and charts: mounted prints (neutral gray, not cream — they hold
+   color data the user is judging) */
 body.skeuo .stats-summary {
   border-left: 4px solid #cfa64a;
-  background-color: #efe8d4;
+  background-color: #e7e6e3;
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.12);
 }
 
@@ -1153,21 +1199,36 @@ body.skeuo .stats-summary p {
 
 body.skeuo .chart-container,
 body.skeuo .advanced-charts-grid .chart-container {
-  background-color: #efe8d4;
+  background-color: #e7e6e3;
 }
 
 body.skeuo .chart-container canvas,
 body.skeuo .advanced-charts-grid .chart-container canvas,
 body.skeuo .sl-map-item canvas {
-  border: 8px solid #fffef8;
+  border: 8px solid #fafaf8;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   border-radius: 2px;
 }
 
+/* 3D viewport reads as an instrument window: warm-charcoal recess under a
+   machined brass bezel, echoing the compass instead of the photo mounts. */
 body.skeuo #sphereContainer {
-  background: #efe8d4;
-  border: 8px solid #fffef8;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  background: #2a2723;
+  border: 8px solid #8a7a5c;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 2px #4a3a0e,
+    0 0 0 2px #4a3a0e,
+    0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+body.skeuo #spherePlaceholder {
+  color: #cfc7b4;
+}
+
+/* The classic purple drop-glow would tint the perceived image colors */
+body.skeuo #uploadedImage:hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
 body.skeuo .advanced-content {
@@ -1186,18 +1247,48 @@ body.skeuo .tooltip {
   background: #8a7a5c;
 }
 
-/* Footer */
+/* Footer: paper strip with ink-dark type */
 body.skeuo footer {
-  color: #5b4a20;
+  background-color: #efe8d4;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+  color: #33291a;
   border-top: 1px solid #8a7a5c;
 }
 
 body.skeuo footer a {
-  color: #7a5c13;
+  color: #6b4e0b;
 }
 
 body.skeuo footer a:hover {
   color: #3d2f0d;
+}
+
+/* Scrollbar in the skeuo theme (html carries the class alongside body):
+   brass thumb on a recessed paper track. Uses both the standard property
+   (Firefox) and the webkit pseudo-elements (Chromium). */
+html.skeuo {
+  scrollbar-color: #a3937a #ded5bf;
+  scrollbar-width: thin;
+}
+
+html.skeuo::-webkit-scrollbar {
+  width: 14px;
+}
+
+html.skeuo::-webkit-scrollbar-track {
+  background: #ded5bf;
+  border-left: 1px solid #a3937a;
+}
+
+html.skeuo::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #f0e9d8 0%, #c9bfa8 100%);
+  border: 1px solid #8a7a5c;
+  border-radius: 7px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+html.skeuo::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #fdf8ec 0%, #d9d0ba 100%);
 }
 
 /* Loading overlay (analysis in progress) */
@@ -1221,6 +1312,24 @@ body.skeuo footer a:hover {
 
 .loading-overlay span {
   animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Skeuo: a stamped paper ticket on a dimmed workbench, not a dark glass box */
+body.skeuo .loading-overlay {
+  background: rgba(70, 66, 58, 0.55);
+}
+
+body.skeuo .loading-overlay span {
+  background: linear-gradient(180deg, #fbf7ee, #e6ddc7);
+  color: #4a4234;
+  border: 1px solid #a3937a;
+  border-radius: 6px;
+  padding: 14px 28px;
+  font-size: 1em;
+  letter-spacing: 2px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
 /* Toast notifications */

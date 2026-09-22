@@ -40,14 +40,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize i18n module
   await initI18n();
 
-  // Theme switcher (classic dark / skeuomorphic workbench)
+  // Theme switcher (classic dark / skeuomorphic workbench). The class lives
+  // on both <html> and <body>: html styles the scrollbar, body styles content.
+  const applyThemeClass = (on) => {
+    document.documentElement.classList.toggle('skeuo', on);
+    document.body.classList.toggle('skeuo', on);
+  };
+  applyThemeClass(localStorage.getItem('color-compass-theme') === 'skeuo');
   const themeToggleBtn = document.getElementById('themeToggleBtn');
-  if (localStorage.getItem('color-compass-theme') === 'skeuo') {
-    document.body.classList.add('skeuo');
-  }
   themeToggleBtn.addEventListener('click', () => {
-    const skeuo = document.body.classList.toggle('skeuo');
+    const skeuo = !document.body.classList.contains('skeuo');
+    applyThemeClass(skeuo);
     localStorage.setItem('color-compass-theme', skeuo ? 'skeuo' : 'classic');
+    // Keep an already-rendered 3D sphere in step with the theme: its scene
+    // background mirrors the container's CSS background.
+    const sphereContainer = document.getElementById('sphereContainer');
+    if (currentScene && sphereContainer) {
+      currentScene.background = new (currentScene.background.constructor)(
+        getComputedStyle(sphereContainer).backgroundColor || '#2a2a2a'
+      );
+    }
   });
 
   // Language switcher functionality

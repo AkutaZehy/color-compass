@@ -126,7 +126,9 @@ export function setupSphereScene (container, pixelData, imageWidth, imageHeight,
 
   // 1. Scene
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x2a2a2a); // Match container background
+  // Follow the container's CSS background so the viewport matches the
+  // active theme (classic dark vs. skeuomorphic instrument window).
+  scene.background = new THREE.Color(getComputedStyle(container).backgroundColor || '#2a2a2a');
 
   // 2. Camera
   // PerspectiveCamera( fov, aspect, near, far )
