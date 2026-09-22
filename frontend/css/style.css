@@ -1152,8 +1152,10 @@ body.skeuo .upload-instructions p {
   color: #d8d2c2;
 }
 
-/* Fill more of the first screen so the drop zone reads as the main stage */
-body.skeuo .upload-area {
+/* Fill more of the first screen so the drop zone reads as the main stage.
+   :not(.hidden) keeps this below `.upload-area.hidden { display: none }` in
+   the cascade — without it, display:flex here overrides the hide rule. */
+body.skeuo .upload-area:not(.hidden) {
   min-height: 300px;
   display: flex;
   align-items: center;
