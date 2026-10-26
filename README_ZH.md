@@ -1,189 +1,112 @@
-# Color Compass 色彩指南针
+# Color Compass
+
+从图像中提取色板，并在浏览器内分析图像的色彩统计。图片不会上传：没有后端、
+没有构建步骤，运行时不依赖任何网络服务。
 
 ![许可证](https://img.shields.io/github/license/AkutaZehy/color-compass?style=flat-square)
-![仓库大小](https://img.shields.io/github/repo-size/AkutaZehy/color-compass?style=flat-square)
 [![深度维基](https://deepwiki.com/badge.svg)](https://deepwiki.com/AkutaZehy/color-compass)
 
-## ✨ 简介
+## 快速开始
 
-**Color Compass** 是一款轻量级、用户友好的工具，旨在从图像中提取调色板，并使用 CIELAB 色彩模型在 3D 空间中可视化色彩空间。它提供了一种简单有效的方法来探索和理解插画的风格和色彩，无需复杂的深度学习或繁重的库。
+可以直接打开页面，也可以用本地服务器打开。
 
-## 🎨 功能
+```bash
+# 本地服务器（推荐：避免 file:// 下的模块限制）
+npm start
+# 或者
+cd frontend && npx serve
+# 或者
+python -m http.server 8000
+```
 
-### 核心功能
-- **调色板提取**：使用先进算法从图像中高效提取调色板：
-  - **MMCQ（改进的中位切分量化）**：用于提取主色
-  - **SLIC 超像素算法**：用于图像分割预处理
-  - **二阶段 K-means 聚类**：用于调色板分析和优化
-  - **背景色检测**：自动识别和分离背景色
-  - **隐藏色提取**：发现不常见但重要的颜色
+然后在浏览器中打开 `frontend/index.html`。直接双击文件也能运行，但 ES 模块
+与 Three.js 的 import map 受浏览器 `file://` 规则限制。
 
-### 可视化
-- **2D 色彩分析**：
-  - HSV 分布直方图（色相、饱和度、明度）
-  - CIELAB 分布直方图（L*、a*、b*）
-  - 高级极坐标色相分布图
-  - 色彩距离热力图
-  - Lab a*b* 密度分布
-
-- **3D 色彩空间**：
-  - Lch 色彩空间中的交互式 3D 球体可视化：纵轴为明度、经度为色相、半径为色域相对彩度（每种色相都能铺满球面）
-  - 鼠标/触摸控制旋转和缩放
-  - 导出高质量 3D 渲染图
-
-### 高级功能
-- **多种色彩距离度量**：
-  - RGB 欧几里得距离（快速）
-  - CIELAB ΔE 距离（感知准确）
-- **性能优化**：自动降采样大图片（最大 2MP）
-- **隐私优先**：所有处理都在浏览器本地完成，数据不会离开您的设备
-
-### 导出选项
-- 将调色板导出为 PNG 图片
-- 将调色板数据导出为 JSON
-- 将 3D 色彩球体导出为 PNG
-
-## 🚀 快速开始
-
-### Web 版本（推荐）
-
-无需安装！直接在浏览器中打开 HTML 文件即可。
-
-**方式：**
-1. **直接打开文件**：直接在浏览器中打开 `frontend/index.html`
-2. **本地服务器（推荐）**：使用 VSCode Live Server 或任何本地 Web 服务器：
-   ```bash
-   npm start
-   # 或者
-   cd frontend && npx serve
-   # 或者
-   python -m http.server 8000
-   ```
-
-**测试**（合成图回归套件，无需浏览器直接在 Node 运行）：
+运行回归测试（使用合成图，无需浏览器）：
 
 ```bash
 npm test
 ```
 
-### 特性
-- 🌐 **国际化**：支持英文和中文（右上角切换）
-- 📱 **响应式设计**：支持桌面和移动设备
-- ♿ **无障碍访问**：键盘导航、ARIA 标签、减少动画支持
-- 🎨 **双主题**：深色主题 + 可选的拟物风格亮色"工作台"主题
-- 🎯 **智能默认值**：针对大多数用例优化的参数
+## 使用
 
-## 🛠️ 技术架构
+1. 载入图片：拖拽到上传区域、选择文件，或用 `Ctrl+V` / `Cmd+V` 从剪贴板粘贴。
+2. 色板自动提取，分析面板自动渲染。
+3. 调整参数并重新生成色板。面板提供 MMCQ 初始颜色簇数量、目标色板大小、
+   藏色检测阈值、SLIC 参数、背景色匹配参数，以及 RGB 与 ΔE 的距离切换；
+   完整参数、取值范围与默认值见
+   [可调参数](docs/ALGORITHM.md#tunable-parameters)。
+   "重置参数"可恢复默认值；色板排序可选占比、亮度或色相。
+4. 导出：色板 PNG、色板 JSON、3D 色彩球体 PNG。
 
-### 技术栈
-- **纯前端**：无需后端，完全在浏览器中运行
-- **原生 JavaScript (ES6 模块)**：无框架开销
-- **Three.js**：用于 3D 可视化（本地加载）
-- **HTML5 Canvas**：用于 2D 可视化和图像处理
-- **现代 CSS**：深色主题 + 拟物亮色主题，响应式设计
+截图：本仓库尚未收录任何截图，待补。
 
-### 模块结构
+## 指标与算法
+
+下表中的数值全部由代码产生；公式、常量与源码行号见
+[docs/ALGORITHM.md](docs/ALGORITHM.md)。
+
+| 指标 | 单位 | 取值范围 | 定义 |
+| --- | --- | --- | --- |
+| 色板占比 | 图像像素比例 | 0 - 1 | [7. Palette output](docs/ALGORITHM.md#7-palette-output) |
+| 像素数 | 像素 | 0 - 工作缓冲区大小 | [7. Palette output](docs/ALGORITHM.md#7-palette-output) |
+| 色相 (H) | 圈数 | 0 - 1 | [色彩空间转换](docs/ALGORITHM.md#color-space-conversions) |
+| 饱和度 (S) | 比例 | 0 - 1 | [色彩空间转换](docs/ALGORITHM.md#color-space-conversions) |
+| 明度 (V) | 比例 | 0 - 1 | [色彩空间转换](docs/ALGORITHM.md#color-space-conversions) |
+| 明度 L\* | Lab 单位 | 0 - 100 | [色彩空间转换](docs/ALGORITHM.md#color-space-conversions) |
+| a\*、b\* | Lab 单位 | 约 -128 - 128；直方图截断到 -100 - 100 | [色彩空间转换](docs/ALGORITHM.md#color-space-conversions) |
+| RGB 欧几里得距离 | RGB 单位 | 0 - 441.7 | [色差度量](docs/ALGORITHM.md#color-distance-metrics) |
+| CIELAB ΔE (1976) | ΔE 单位 | 0 起，无上界 | [色差度量](docs/ALGORITHM.md#color-distance-metrics) |
+| 边缘强度 | 边缘像素比例 | 0 - 1 | [派生量](docs/ALGORITHM.md#derived-measurements) |
+| 局部对比度 | RGB 距离 / 255 | 0 - 1 | [派生量](docs/ALGORITHM.md#derived-measurements) |
+| 色相独特性 | 比例 | 0 - 1 | [派生量](docs/ALGORITHM.md#derived-measurements) |
+| 彩度 C | Lab 单位 | 0 起 | [派生量](docs/ALGORITHM.md#derived-measurements) |
+| 相对彩度 C / Cmax | 比例 | 0 - 1 | [3D Lch 色彩球体](docs/ALGORITHM.md#3d-lch-sphere) |
+| 藏色分数 | 无量纲加权和 | 0 起 | [5. 藏色检测](docs/ALGORITHM.md#5-hidden-color-detection) |
+
+流程各阶段：[1. 解码与降采样](docs/ALGORITHM.md#1-decode-and-downsample) →
+[2. SLIC 超像素](docs/ALGORITHM.md#2-slic-superpixels) →
+[3. MMCQ 主色提取](docs/ALGORITHM.md#3-mmcq-dominant-colors) →
+[4. K-means 聚类](docs/ALGORITHM.md#4-k-means-clustering) →
+[5. 藏色检测](docs/ALGORITHM.md#5-hidden-color-detection) →
+[6. 背景色检测](docs/ALGORITHM.md#6-background-detection) →
+[7. 色板输出](docs/ALGORITHM.md#7-palette-output)。
+
+## 已知限制
+
+- 只实现了 ΔE 1976，代码中没有 ΔE 2000。
+- RGB 到 Lab 的转换假定输入为 sRGB 且使用 D65 光源，不读取 ICC 配置文件。
+- 色相的平均值与标准差使用普通线性平均，而色相本身是周期量。
+- 超过 2 MP 的图片会先降采样再分析，因此色板占比描述的是降采样后的缓冲区，
+  不是原始文件。
+- 3D 色彩球体与散点图使用抽样像素（分别每 200 个、每 100 个像素取一个）。
+- 背景色检测只依赖边缘采样；若背景色完全不接触图像边界，则检测不到。
+- 仓库未附带任何截图或演示图。
+
+## 文档
+
+| 文档 | 内容 |
+| --- | --- |
+| [docs/ALGORITHM.md](docs/ALGORITHM.md) | 公式、常量、阈值、单位，附 `file:line` 出处 |
+| [README.md](README.md) | 本文档的英文版 |
+| [frontend/i18n/en-US.json](frontend/i18n/en-US.json) | 界面文案（英文） |
+| [frontend/i18n/zh-CN.json](frontend/i18n/zh-CN.json) | 界面文案（中文） |
+
+## 构建与测试
+
+没有构建步骤，页面就是 `frontend/` 下的原生 ES 模块。
+
+```bash
+npm test     # node --test，运行 test/pipeline.test.mjs
+npm start    # npx serve frontend
 ```
-frontend/
-├── index.html              # 主入口点
-├── css/
-│   └── style.css          # 所有样式
-├── js/
-│   ├── main.js            # 核心协调器和 UI 逻辑
-│   ├── colorUtils.js      # RGB/HSV/Lab 色彩转换
-│   ├── imageHandler.js    # 图像加载和画布操作
-│   ├── medianCut.js       # MMCQ 算法提取主色
-│   ├── slic.js            # SLIC 超像素算法
-│   ├── paletteAnalyzer.js # 二阶段 K-means 聚类
-│   ├── paletteRenderer.js # 调色板显示和导出
-│   ├── colorStats.js      # 色彩统计计算
-│   ├── visualization2D.js # 2D 直方图和散点图
-│   ├── visualizationAdvanced.js # 高级可视化
-│   ├── slMapRenderer.js   # S-L 图分析可视化
-│   ├── sphereRenderer3D.js # 3D Lch 色彩球体
-│   ├── toast.js           # 非阻塞通知
-│   ├── fileSaver.js       # 文件导出工具
-│   └── i18n.js            # 国际化模块
-├── i18n/
-│   ├── en-US.json         # 英文翻译
-│   └── zh-CN.json         # 中文翻译
-└── lib/
-    └── three/             # Three.js 库文件
-```
 
-### 色彩空间转换
-- RGB ↔ HSV
-- RGB ↔ CIELAB（经由 XYZ）
-- 完全符合 ICC 配置文件，使用 D65 光源
+`npm test` 直接在 Node 中用合成图调用 MMCQ、SLIC 与分析模块，既不需要浏览器
+也不需要 canvas。
 
-## 📊 算法详情
+## 许可证
 
-### 调色板提取流程
-1. **图像降采样**：对于 >2MP 的图像，降采样以提高性能
-2. **SLIC 超像素预处理**：将相似像素分组为超像素（含边缘强度与局部对比度特征）
-3. **MMCQ 主色提取**：5-bit 直方图量化，获取初始颜色种子
-4. **K-means 聚类 + 隐藏色播种**：高对比/强边缘的超像素作为额外中心参与聚类，小簇按边缘强度、局部对比度或色相独特性标记为隐藏色；簇按方差分裂以达成目标色板数量
-5. **背景色处理**：基于边缘像素的空间匹配检测背景色
-6. **生成最终调色板**：按选定方式排序（默认按占比，可选亮度/色相）并输出
+MIT，见 [LICENSE](LICENSE)。
 
-### 色彩差异度量
-- **RGB 欧几里得**：快速但感知不准确
-- **CIELAB ΔE76**：Lab 空间中的标准欧几里得距离
-- **CIELAB ΔE2000**：更准确的感知距离（即将推出）
-
-## 🌍 国际化
-
-Color Compass 完全支持国际化：
-- 🇺🇸 英文 (en-US) - 默认
-- 🇨🇳 中文 (zh-CN)
-
-### 添加新语言
-1. 在 `frontend/i18n/` 中创建新的 JSON 文件（例如 `ja-JP.json`）
-2. 从 `en-US.json` 复制结构并翻译所有值
-3. 该语言将自动出现在语言切换器中
-
-## 🤝 贡献
-
-我们欢迎贡献！以下是您可以帮助的方式：
-
-### 贡献方式
-- 🐛 **错误报告**：发现问题？打开 GitHub issue
-- 💡 **功能请求**：有想法？与我们分享
-- 🔧 **代码贡献**：提交 pull request
-- 📝 **文档**：改进文档或添加翻译
-- 🎨 **UI/UX**：建议设计改进
-
-### 开发设置
-1. Fork 仓库
-2. 克隆您的 fork：
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/color-compass.git
-   ```
-3. 创建功能分支：
-   ```bash
-   git checkout -b feature/amazing-new-feature
-   ```
-4. 做出更改并提交：
-   ```bash
-   git commit -m "添加惊人的新功能"
-   ```
-5. 推送到 GitHub 并提交 pull request
-
-## 📜 许可证
-
-本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。
-
-## 🙏 致谢
-
-- **Three.js**：提供强大的 3D 可视化功能
-- **色彩科学**：CIE 开发 Lab 色彩空间标准
-- **开源社区**：启发此项目
-
----
-
-**尽情探索色彩！** 🌈
-
-### 社交
-- 🌟 在 GitHub 上给我们星标
-- 🐛 报告错误
-- 💬 加入讨论
+致谢：MMCQ 实现参考了 Lokesh Dhakar 的 Color-Thief；3D 渲染使用 Three.js；
+CIELAB 遵循 CIE 标准。

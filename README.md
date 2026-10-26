@@ -1,255 +1,120 @@
 # Color Compass
 
+Extract a colour palette from an image and inspect the image's colour
+statistics, entirely in the browser. The image is never uploaded: there is no
+backend, no build step, and no runtime dependency on a network service.
+
 ![License](https://img.shields.io/github/license/AkutaZehy/color-compass?style=flat-square)
-![Repo Size](https://img.shields.io/github/repo-size/AkutaZehy/color-compass?style=flat-square)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/AkutaZehy/color-compass)
 
-## ✨ Introduction
+## Quick start
 
-**Color Compass** is a lightweight, privacy-first color analysis tool that extracts color palettes from images and visualizes color spaces. It combines computer vision algorithms with intuitive visualizations to help designers, artists, and developers understand and work with color effectively.
+Open the app either directly or behind a local server.
 
-**No data leaves your device.** All processing happens locally in your browser.
+```bash
+# local server (recommended: avoids file:// module restrictions)
+npm start
+# or
+cd frontend && npx serve
+# or
+python -m http.server 8000
+```
 
-## 🎨 Features
+Then open `frontend/index.html` in a browser. Opening the file directly also
+works, but ES modules and the Three.js import map are subject to browser
+`file://` rules.
 
-### Core Functionality
-
-- **Palette Extraction**: Advanced algorithm pipeline combining:
-    - **SLIC Superpixel Segmentation**: Groups pixels into meaningful regions with spatial coherence
-    - **MMCQ (Modified Median Cut Quantization)**: Extracts dominant color centers
-    - **Edge-Aware K-means Clustering**: Refines colors using perceptual metrics
-    - **Background Color Detection**: Identifies background using spatial connectivity
-    - **Hidden Color Extraction**: Discovers important colors that would otherwise be missed
-
-### Visualizations
-
-- **2D Color Analysis**:
-    - HSV distribution histograms (Hue, Saturation, Value)
-    - CIELAB distribution histograms (L*, a*, b\*)
-    - Polar hue distribution chart
-    - Color distance heatmap
-    - Lab a*b* density distribution
-    - Lab a*b* scatter plot
-    - **Map Analysis**:
-        - Color Clustering: Mosaic downsampling + median cut (16 colors)
-        - S Map: Saturation grayscale visualization
-        - L Map: Standard 8-bit posterization (10 luminance levels)
-        - Color Distance Heatmap: Shows color difference per region to nearest palette color
-
-- **3D Color Space**:
-    - Interactive 3D sphere visualization in Lch color space: lightness axis, hue longitude, and gamut-relative chroma as radius, so every hue reaches the sphere surface
-    - Mouse/touch controls for rotation and zoom
-    - Export high-quality 3D renders
-
-### Advanced Features
-
-- **Multiple Color Distance Metrics**:
-    - RGB Euclidean distance (fast)
-    - CIELAB ΔE distance (perceptually accurate)
-- **Edge-Aware Hidden Color Detection**: Finds small but important colors using:
-    - Edge strength analysis (colors at object boundaries)
-    - Local contrast detection (colors that stand out)
-    - Hue uniqueness scoring
-- **Automatic Image Optimization**: Downsamples large images (max 2MP) for performance
-- **Fully Local**: Zero network requests for image processing
-
-### Export Options
-
-- Palette as PNG image
-- Palette data as JSON
-- 3D color sphere as PNG
-
-## 🚀 Quick Start
-
-### Web Version (Recommended)
-
-No installation required! Just open the HTML file directly in your browser.
-
-**Options:**
-
-1. **Direct File**: Open `frontend/index.html` directly
-2. **Local Server** (Recommended for CORS-free access):
-    ```bash
-    npm start
-    # or
-    cd frontend && npx serve
-    # or
-    python -m http.server 8000
-    ```
-
-**Tests** (synthetic-image regression suite, runs in Node without a browser):
+Run the regression suite (synthetic images, no browser needed):
 
 ```bash
 npm test
 ```
 
-### Features
+## Usage
 
-- 🌐 **Internationalization**: English and Chinese
-- 📱 **Responsive Design**: Desktop and mobile
-- ♿ **Accessibility**: Keyboard navigation, ARIA labels, reduced motion support
-- 🎨 **Themes**: Dark theme plus an optional skeuomorphic light "workbench" theme
-- 🎯 **Tunable Parameters**: Adjust algorithm behavior to suit your images
+1. Load an image: drag and drop it onto the upload area, pick a file, or paste
+   from the clipboard with `Ctrl+V` / `Cmd+V`.
+2. The palette is extracted and the analysis panels render automatically.
+3. Adjust parameters and re-render. The panel exposes the MMCQ seed count, the
+   target palette size, the hidden-colour thresholds, the SLIC parameters, the
+   background matching parameters and the RGB-vs-Delta-E distance switch; the
+   full list with ranges and defaults is in
+   [Tunable parameters](docs/ALGORITHM.md#tunable-parameters).
+   "Reset parameters" restores the defaults, and the palette order can be set to
+   percentage, luminance or hue.
+4. Export: palette as PNG, palette as JSON, or the 3D sphere as PNG.
 
-## 🛠️ Technical Architecture
+Screenshots: none are tracked in this repository yet — screenshots pending.
 
-### Technology Stack
+## Metrics and algorithms
 
-- **Pure Frontend**: No backend, no dependencies, runs in any modern browser(Server needed to avoid cross-domain issues in JavaScript.)
-- **Vanilla JavaScript (ES6 Modules)**: Zero framework overhead
-- **Three.js**: 3D visualization (loaded locally)
-- **HTML5 Canvas**: 2D rendering and image processing
-- **Modern CSS**: Dark theme plus optional skeuomorphic light theme, responsive layout
+Every value below is produced by the code; the formula, the constant and the
+source line are in [docs/ALGORITHM.md](docs/ALGORITHM.md).
 
-### Module Structure
+| Metric | Unit | Range | Definition |
+| --- | --- | --- | --- |
+| Palette share | fraction of image pixels | 0 - 1 | [7. Palette output](docs/ALGORITHM.md#7-palette-output) |
+| Pixel count | pixels | 0 - working buffer size | [7. Palette output](docs/ALGORITHM.md#7-palette-output) |
+| Hue (H) | turns | 0 - 1 | [Color space conversions](docs/ALGORITHM.md#color-space-conversions) |
+| Saturation (S) | ratio | 0 - 1 | [Color space conversions](docs/ALGORITHM.md#color-space-conversions) |
+| Value (V) | ratio | 0 - 1 | [Color space conversions](docs/ALGORITHM.md#color-space-conversions) |
+| Lightness L\* | Lab units | 0 - 100 | [Color space conversions](docs/ALGORITHM.md#color-space-conversions) |
+| a\*, b\* | Lab units | about -128 - 128; histograms clip to -100 - 100 | [Color space conversions](docs/ALGORITHM.md#color-space-conversions) |
+| RGB Euclidean distance | RGB units | 0 - 441.7 | [Color distance metrics](docs/ALGORITHM.md#color-distance-metrics) |
+| CIELAB Delta E (1976) | Delta E units | 0 upward, unbounded | [Color distance metrics](docs/ALGORITHM.md#color-distance-metrics) |
+| Edge strength | ratio of edge pixels | 0 - 1 | [Derived measurements](docs/ALGORITHM.md#derived-measurements) |
+| Local contrast | RGB distance / 255 | 0 - 1 | [Derived measurements](docs/ALGORITHM.md#derived-measurements) |
+| Hue uniqueness | ratio | 0 - 1 | [Derived measurements](docs/ALGORITHM.md#derived-measurements) |
+| Chroma C | Lab units | 0 upward | [Derived measurements](docs/ALGORITHM.md#derived-measurements) |
+| Relative chroma C / Cmax | ratio | 0 - 1 | [3D Lch sphere](docs/ALGORITHM.md#3d-lch-sphere) |
+| Hidden score | unitless weighted sum | 0 upward | [5. Hidden color detection](docs/ALGORITHM.md#5-hidden-color-detection) |
 
-```
-frontend/
-├── index.html              # Main entry point
-├── css/
-│   └── style.css          # Styling and responsive design
-├── js/
-│   ├── main.js            # Core orchestrator and UI logic
-│   ├── colorUtils.js      # RGB/HSV/Lab color conversions
-│   ├── imageHandler.js    # Image loading and pixel extraction
-│   ├── medianCut.js       # MMCQ algorithm for dominant colors
-│   ├── slic.js            # SLIC superpixel with edge features
-│   ├── paletteAnalyzer.js # Edge-aware clustering and analysis
-│   ├── paletteRenderer.js # Palette display and export
-│   ├── colorStats.js      # Statistical color analysis
-│   ├── visualization2D.js # 2D histograms and scatter plots
-│   ├── visualizationAdvanced.js # Advanced visualizations
-│   ├── slMapRenderer.js     # S-L Map visualizations
-│   ├── sphereRenderer3D.js # 3D Lch color sphere
-│   ├── toast.js           # Non-blocking notifications
-│   ├── fileSaver.js       # Export utilities
-│   └── i18n.js            # Internationalization
-├── i18n/
-│   ├── en-US.json         # English
-│   └── zh-CN.json         # Chinese
-└── lib/
-    └── three/             # Three.js library
-```
+Pipeline stages: [1. Decode and downsample](docs/ALGORITHM.md#1-decode-and-downsample) →
+[2. SLIC superpixels](docs/ALGORITHM.md#2-slic-superpixels) →
+[3. MMCQ dominant colors](docs/ALGORITHM.md#3-mmcq-dominant-colors) →
+[4. K-means clustering](docs/ALGORITHM.md#4-k-means-clustering) →
+[5. Hidden color detection](docs/ALGORITHM.md#5-hidden-color-detection) →
+[6. Background detection](docs/ALGORITHM.md#6-background-detection) →
+[7. Palette output](docs/ALGORITHM.md#7-palette-output).
 
-## 📊 Algorithm Details
+## Known limitations
 
-### Palette Extraction Pipeline
+- Only Delta E 1976 is implemented. Delta E 2000 does not exist in the code.
+- The RGB-to-Lab conversion assumes sRGB with a D65 white point; ICC profiles
+  are not read.
+- Hue average and standard deviation use plain linear averages even though hue
+  is a cyclic quantity.
+- Images above 2 MP are downscaled before analysis, so palette shares describe
+  the downscaled buffer, not the original file.
+- The 3D sphere and the scatter plot work on sampled pixels (every 200th and
+  every 100th pixel respectively).
+- Background detection relies on edge sampling only; a background that never
+  touches the image border is not detected.
+- The repository ships no screenshot or demo image.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        IMAGE INPUT                                   │
-└─────────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  1. SLIC Superpixel Segmentation                                    │
-│     - Groups pixels into spatially coherent regions                  │
-│     - Extracts: avgRGB, position, edgeStrength, contrast            │
-│     - Enables edge-aware analysis later                               │
-└─────────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  2. MMCQ Dominant Color Extraction                                  │
-│     - Builds 3D histogram of quantized colors                       │
-│     - Iterative median cut to find color clusters                   │
-│     - Returns initial centroids for clustering                       │
-└─────────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  3. Edge-Aware K-means Clustering                                   │
-│     - Assigns superpixels to nearest centroids                      │
-│     - Uses RGB or ΔE distance (configurable)                        │
-│     - Iteratively refines cluster centers                            │
-└─────────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  4. Hidden Color Detection                                           │
-│     - High-contrast / edge-strong superpixels far from existing      │
-│       seeds become extra cluster centroids (so small important       │
-│       colors can win a cluster instead of being absorbed)            │
-│     - Small clusters are tagged using edge strength, local           │
-│       contrast, or hue uniqueness                                    │
-└─────────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  5. Background Color Detection                                       │
-│     - Samples edge pixels (background usually at edges)              │
-│     - Finds clusters present at image boundaries                     │
-│     - Prioritizes large connected regions                            │
-└─────────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                        FINAL PALETTE                                 │
-│     - Sorted by the selected order (population by default;           │
-│       luminance and hue available)                                   │
-│     - Tagged with: isBackground, isHidden                            │
-│     - Each color: RGB, Lab, count, percentage                        │
-└─────────────────────────────────────────────────────────────────────┘
+## Documentation
+
+| Document | Contents |
+| --- | --- |
+| [docs/ALGORITHM.md](docs/ALGORITHM.md) | Formulas, constants, thresholds, units, with `file:line` sources |
+| [README_ZH.md](README_ZH.md) | Chinese version of this file |
+| [frontend/i18n/en-US.json](frontend/i18n/en-US.json) | UI strings (English) |
+| [frontend/i18n/zh-CN.json](frontend/i18n/zh-CN.json) | UI strings (Chinese) |
+
+## Build and test
+
+There is no build step. The app is plain ES modules served from `frontend/`.
+
+```bash
+npm test     # node --test, runs test/pipeline.test.mjs
+npm start    # npx serve frontend
 ```
 
-### Color Difference Metrics
+`npm test` exercises the MMCQ, SLIC and analyzer modules directly in Node with
+synthetic images: it needs neither a browser nor a canvas.
 
-- **RGB Euclidean**: Fast, hardware-accelerated, good for real-time preview
-- **CIELAB ΔE**: Perceptually accurate, recommended for final output
+## License
 
-### Tunable Parameters
+MIT — see [LICENSE](LICENSE).
 
-| Parameter               | Range   | Default | Description                              |
-| ----------------------- | ------- | ------- | ---------------------------------------- |
-| `targetPaletteSize`     | 4-24    | 12      | Target number of colors in final palette |
-| `dominantColors`        | 2-20    | 8       | Initial color centers from MMCQ          |
-| `maxHiddenColors`       | 0-5     | 3       | Maximum hidden colors to detect          |
-| `hiddenColorThreshold`  | 0-0.05  | 0.005   | Minimum pixel ratio for hidden color     |
-| `edgeSensitivity`       | 0-1     | 0.5     | Sensitivity to edge-boundary colors      |
-| `contrastThreshold`     | 0-1     | 0.3     | Sensitivity to high-contrast colors      |
-| `superpixelCount`       | 50-500  | 200     | Number of superpixel regions             |
-| `superpixelCompactness` | 1-50    | 10      | Regularity of superpixel shapes          |
-| `maxBackgrounds`        | 1-5     | 3       | Maximum background colors                |
-| `useDeltaE`             | boolean | false   | Use perceptual distance metric           |
-
-### Hidden Color Detection Strategy
-
-Hidden colors are colors that are **small in quantity but important in meaning** (e.g., a small insect on a leaf, text on a sign). Our algorithm detects them using:
-
-1. **Seeding**: superpixels with high local contrast or edge strength that sit far from the MMCQ seeds are added as extra K-means centroids, so a rare vivid color can win its own cluster instead of being absorbed by a dominant neighbor
-2. **Edge Strength**: colors at object boundaries often indicate important transitions
-3. **Local Contrast**: colors that contrast sharply with surroundings are perceptually significant
-4. **Hue Uniqueness**: colors that are outliers in the circular hue distribution may be meaningful
-5. **Size Threshold**: only considers colors above a minimum pixel ratio to filter noise
-
-## 🌍 Internationalization
-
-Supported languages:
-
-- 🇺🇸 English (en-US) - Default
-- 🇨🇳 Chinese (zh-CN)
-
-### Adding New Languages
-
-1. Create a new JSON file in `frontend/i18n/` (e.g., `ja-JP.json`)
-2. Copy structure from `en-US.json` and translate all values
-3. The language will automatically appear in the language switcher
-
-## 🤝 Contributing
-
-> If you want it, then you have to take it.
-
-No issues, no PRs.
-
-Any modification ideas: fork it and do it yourself, the code is provided "AS IS".
-
-## 📜 License
-
-MIT License - feel free to use, modify, and distribute.
-
-## 🙏 Acknowledgments
-
-- **Lokesh Dhakar** - Original Color-Thief MMCQ algorithm
-- **Three.js** - 3D visualization framework
-- **CIE** - Lab color space standards
-
+Acknowledgements: MMCQ follows the Color-Thief approach by Lokesh Dhakar; 3D rendering uses Three.js; CIELAB follows the CIE standard.
